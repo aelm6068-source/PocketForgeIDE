@@ -60,16 +60,16 @@ const getDefaultFileContents = (
       web: 'expo start --web',
     },
     dependencies: {
-      expo: '~54.0.0',
-      'expo-status-bar': '~3.0.8',
-      react: '19.1.0',
-      'react-native': '0.81.4',
+      expo: '~57.0.0',
+      'expo-status-bar': '~57.0.0',
+      react: '19.2.0',
+      'react-native': '0.86.3',
     },
     ...(isTs
       ? {
           devDependencies: {
             typescript: '~5.9.2',
-            '@types/react': '~19.1.0',
+            '@types/react': '~19.2.0',
           },
         }
       : {}),

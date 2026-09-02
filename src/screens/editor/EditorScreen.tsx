@@ -23,13 +23,14 @@ function getLanguageLabel(fileName: string): 'TypeScript' | 'JavaScript' | 'JSON
 const AUTOSAVE_DELAY = 700;
 
 export default function EditorScreen({ route, navigation }: any) {
-  const { projectName, files, initialFileId } = route.params as {
+  const { projectId, projectName, files, initialFileId } = route.params as {
+    projectId: string;
     projectName: string;
     files: ProjectFile[];
     initialFileId: string;
   };
 
-  const editorFile = useEditorFile(files);
+  const editorFile = useEditorFile(projectId, files);
   const hasOpenedInitial = useRef(false);
   const [keyboardMode, setKeyboardMode] = useState<KeyboardMode>('custom');
   const [keyboardCollapsed, setKeyboardCollapsed] = useState(false);
