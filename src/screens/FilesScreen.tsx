@@ -1,5 +1,5 @@
 // src/screens/FilesScreen.tsx
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
   Alert, Animated, Dimensions, Easing,
@@ -7,21 +7,126 @@ import {
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
+import * as Clipboard from 'expo-clipboard';
 import { colors, fonts, spacing, radius } from '../theme/colors';
 import { FileIconBadge } from '../theme/fileIcons';
 import InputModal from '../components/InputModal';
+import ActionModal from '../components/ActionModal';
+import FileActionMenu, { FileActionTarget } from '../components/FileActionMenu';
+import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, saveSandboxId, loadSandboxId, clearSandboxId } from '../utils/projectStorage';
+import * as SecureStore from 'expo-secure-store';
+import { createSandbox, uploadProjectFiles, runExpoTunnel, RunProgressStage } from '../utils/daytonaClient';
+import RunSandboxModal from '../components/RunSandboxModal';
+import {
+  ProjectFile,
+  getChildren,
+  buildFilePath,
+  getDescendantIds,
+} from './editor/useEditorFile';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.62;
 
-// الملفات الوهمية بتتولد حسب لغة المشروع
-const getMockFiles = (language: 'typescript' | 'javascript') => {
+const getMockFiles = (language: 'typescript' | 'javascript'): ProjectFile[] => {
   const appExt = language === 'javascript' ? 'jsx' : 'tsx';
-  return [
-    { id: '1', name: `App.${appExt}`, type: 'file' },
-    { id: '2', name: 'package.json', type: 'file' },
-    { id: '3', name: 'src', type: 'folder' },
+  const files: ProjectFile[] = [
+    { id: '1', name: `App.${appExt}`, type: 'file', parentId: null },
+    { id: '2', name: 'package.json', type: 'file', parentId: null },
+    { id: '3', name: 'src', type: 'folder', parentId: null },
+    { id: '4', name: 'app.json', type: 'file', parentId: null },
   ];
+  if (language === 'typescript') {
+    files.push({ id: '5', name: 'tsconfig.json', type: 'file', parentId: null });
+  }
+  return files;
+};
+
+// المحتوى الحقيقي اللي لازم يتحفظ لكل ملف افتراضي عشان مشروع Expo يشتغل فعليًا
+// (بدل المحتوى الفاضي/العام اللي بيتولّد تلقائيًا حسب امتداد الملف بس)
+const getDefaultFileContents = (
+  language: 'typescript' | 'javascript'
+): Record<string, string> => {
+  const isTs = language === 'typescript';
+
+  const packageJson = {
+    name: 'pocketforge-project',
+    version: '1.0.0',
+    main: 'expo/AppEntry.js',
+    scripts: {
+      start: 'expo start',
+      android: 'expo start --android',
+      ios: 'expo start --ios',
+      web: 'expo start --web',
+    },
+    dependencies: {
+      expo: '~54.0.0',
+      'expo-status-bar': '~3.0.8',
+      react: '19.1.0',
+      'react-native': '0.81.4',
+    },
+    ...(isTs
+      ? {
+          devDependencies: {
+            typescript: '~5.9.2',
+            '@types/react': '~19.1.0',
+          },
+        }
+      : {}),
+    private: true,
+  };
+
+  const appJson = {
+    expo: {
+      name: 'PocketForge Project',
+      slug: 'pocketforge-project',
+      version: '1.0.0',
+      orientation: 'portrait',
+      userInterfaceStyle: 'automatic',
+      newArchEnabled: true,
+    },
+  };
+
+  const appComponent = `import { StatusBar } from 'expo-status-bar';
+import { StyleSheet, Text, View } from 'react-native';
+
+export default function App() {
+  return (
+    <View style={styles.container}>
+      <Text>مرحبًا من PocketForge!</Text>
+      <StatusBar style="auto" />
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+`;
+
+  const contents: Record<string, string> = {
+    '1': appComponent,
+    '2': JSON.stringify(packageJson, null, 2) + '\n',
+    '4': JSON.stringify(appJson, null, 2) + '\n',
+  };
+
+  if (isTs) {
+    contents['5'] = JSON.stringify(
+      {
+        extends: 'expo/tsconfig.base',
+        compilerOptions: { strict: true },
+      },
+      null,
+      2
+    ) + '\n';
+  }
+
+  return contents;
 };
 
 const drawerItems = [
@@ -32,12 +137,58 @@ const drawerItems = [
 ];
 
 export default function FilesScreen({ route, navigation }: any) {
-  const { projectName, language } = route.params;
+  const { projectId, projectName, language } = route.params;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeItem, setActiveItem] = useState('files');
-  const [files, setFiles] = useState(getMockFiles(language || 'typescript'));
+  const [files, setFiles] = useState<ProjectFile[]>([]);
   const [fileModalVisible, setFileModalVisible] = useState(false);
   const [folderModalVisible, setFolderModalVisible] = useState(false);
+  const [renameTarget, setRenameTarget] = useState<FileActionTarget | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<FileActionTarget | null>(null);
+  const [menuTarget, setMenuTarget] = useState<FileActionTarget | null>(null);
+  const [menuVisible, setMenuVisible] = useState(false);
+  const [runVisible, setRunVisible] = useState(false);
+  const [runStage, setRunStage] = useState<RunProgressStage | 'idle'>('idle');
+  const [runMessage, setRunMessage] = useState('');
+  const [runTunnelUrl, setRunTunnelUrl] = useState<string | undefined>(undefined);
+
+  // مكدس المجلدات المفتوحة - آخر عنصر هو المجلد الحالي، فاضي يعني إحنا في الجذر
+  const [folderStack, setFolderStack] = useState<{ id: string; name: string }[]>([]);
+  const hasLoaded = useRef(false);
+
+  const currentFolderId = folderStack.length > 0 ? folderStack[folderStack.length - 1].id : null;
+  const currentFolderName = folderStack.length > 0 ? folderStack[folderStack.length - 1].name : projectName;
+
+  // أول ما الشاشة تفتح: نحمّل قائمة الملفات المحفوظة فعليًا، ولو مفيش، نبدأ بالقايمة الافتراضية ونحفظها
+  useEffect(() => {
+    if (hasLoaded.current) return;
+    hasLoaded.current = true;
+
+    loadProjectFiles(projectId).then((saved) => {
+      if (saved && saved.length > 0) {
+        setFiles(saved as ProjectFile[]);
+      } else {
+        const defaults = getMockFiles(language || 'typescript');
+        setFiles(defaults);
+        saveProjectFiles(projectId, defaults);
+
+        const defaultContents = getDefaultFileContents(language || 'typescript');
+        Object.entries(defaultContents).forEach(([fileId, content]) => {
+          saveFileContent(projectId, fileId, content);
+        });
+      }
+    });
+  }, [projectId, language]);
+
+  const visibleFiles = useMemo(
+    () => getChildren(currentFolderId, files),
+    [currentFolderId, files]
+  );
+
+  const persistFiles = useCallback((next: ProjectFile[]) => {
+    setFiles(next);
+    saveProjectFiles(projectId, next);
+  }, [projectId]);
 
   const slideAnim = useRef(new Animated.Value(DRAWER_WIDTH)).current;
 
@@ -60,43 +211,221 @@ export default function FilesScreen({ route, navigation }: any) {
     }).start(() => setDrawerOpen(false));
   };
 
+  // زرار الرجوع: لو إحنا جوا مجلد، نطلع مستوى واحد بس. لو في الجذر، نقفل الشاشة كلها
+  const handleBack = () => {
+    if (folderStack.length > 0) {
+      setFolderStack((prev) => prev.slice(0, -1));
+    } else {
+      navigation.goBack();
+    }
+  };
+
   const handleImport = async () => {
     try {
       const result = await DocumentPicker.getDocumentAsync({ copyToCacheDirectory: true });
       if (result.canceled) return;
       const picked = result.assets[0];
-      setFiles((prev) => [...prev, { id: Date.now().toString(), name: picked.name, type: 'file' }]);
+      const newFile: ProjectFile = {
+        id: Date.now().toString(),
+        name: picked.name,
+        type: 'file',
+        parentId: currentFolderId,
+      };
+      persistFiles([...files, newFile]);
     } catch (e) {
       Alert.alert('خطأ', 'حصلت مشكلة أثناء استيراد الملف');
     }
   };
 
-  const handleExport = async (fileName: string) => {
-    const isAvailable = await Sharing.isAvailableAsync();
-    if (!isAvailable) {
-      Alert.alert('غير متاح', 'المشاركة مش متاحة على الجهاز ده');
-      return;
-    }
-    Alert.alert('تصدير', `هيتم تجهيز "${fileName}" للتصدير لما نربط نظام الملفات الحقيقي`);
-  };
-
   const handleCreateFile = (name: string) => {
-    setFiles((prev) => [...prev, { id: Date.now().toString(), name, type: 'file' }]);
+    const newFile: ProjectFile = {
+      id: Date.now().toString(),
+      name,
+      type: 'file',
+      parentId: currentFolderId,
+    };
+    persistFiles([...files, newFile]);
     setFileModalVisible(false);
   };
 
   const handleCreateFolder = (name: string) => {
-    setFiles((prev) => [...prev, { id: Date.now().toString(), name, type: 'folder' }]);
+    const newFolder: ProjectFile = {
+      id: Date.now().toString(),
+      name,
+      type: 'folder',
+      parentId: currentFolderId,
+    };
+    persistFiles([...files, newFolder]);
     setFolderModalVisible(false);
+  };
+
+  const openItem = (item: ProjectFile) => {
+    if (item.type === 'folder') {
+      setFolderStack((prev) => [...prev, { id: item.id, name: item.name }]);
+    } else {
+      navigation.navigate('Editor', {
+        projectId,
+        projectName,
+        files,
+        initialFileId: item.id,
+      });
+    }
+  };
+
+  const openMenuFor = (item: ProjectFile) => {
+    setMenuTarget({ id: item.id, name: item.name, type: item.type });
+    setMenuVisible(true);
+  };
+
+  const handleDownload = async (target: FileActionTarget) => {
+    try {
+      const content = await loadFileContent(projectId, target.id);
+      const file = new File(Paths.cache, target.name);
+      file.write(content ?? '');
+
+      const isAvailable = await Sharing.isAvailableAsync();
+      if (!isAvailable) {
+        Alert.alert('غير متاح', 'المشاركة مش متاحة على الجهاز ده');
+        return;
+      }
+      await Sharing.shareAsync(file.uri);
+    } catch (e) {
+      Alert.alert('خطأ', 'حصلت مشكلة أثناء تجهيز الملف للتحميل');
+    }
+  };
+
+  const handleMenuAction = async (action: string, target: FileActionTarget) => {
+    setMenuVisible(false);
+
+    switch (action) {
+      case 'rename':
+        setRenameTarget(target);
+        break;
+
+      case 'copyPath': {
+        const path = buildFilePath(target.id, files);
+        await Clipboard.setStringAsync(path);
+        Alert.alert('تم', 'اتنسخ المسار: ' + path);
+        break;
+      }
+
+      case 'duplicate': {
+        const original = files.find((f) => f.id === target.id);
+        if (!original) return;
+        const dotIndex = original.name.lastIndexOf('.');
+        const baseName = dotIndex > 0 ? original.name.slice(0, dotIndex) : original.name;
+        const ext = dotIndex > 0 ? original.name.slice(dotIndex) : '';
+        const copyName = `${baseName}-copy${ext}`;
+        const content = await loadFileContent(projectId, target.id);
+
+        const newFile: ProjectFile = {
+          id: Date.now().toString(),
+          name: copyName,
+          type: 'file',
+          parentId: original.parentId,
+        };
+        persistFiles([...files, newFile]);
+        if (content !== null) {
+          await saveFileContent(projectId, newFile.id, content);
+        }
+        break;
+      }
+
+      case 'download':
+        await handleDownload(target);
+        break;
+
+      case 'addFile':
+        setFolderStack((prev) => [...prev, { id: target.id, name: target.name }]);
+        setFileModalVisible(true);
+        break;
+
+      case 'addFolder':
+        setFolderStack((prev) => [...prev, { id: target.id, name: target.name }]);
+        setFolderModalVisible(true);
+        break;
+
+      case 'delete':
+        setDeleteTarget(target);
+        break;
+    }
+  };
+
+  const handleRenameSubmit = (newName: string) => {
+    if (!renameTarget) return;
+    const next = files.map((f) => (f.id === renameTarget.id ? { ...f, name: newName } : f));
+    persistFiles(next);
+    setRenameTarget(null);
+  };
+
+  const handleDeleteConfirm = () => {
+    if (!deleteTarget) return;
+    const idsToDelete = deleteTarget.type === 'folder'
+      ? [deleteTarget.id, ...getDescendantIds(deleteTarget.id, files)]
+      : [deleteTarget.id];
+
+    persistFiles(files.filter((f) => !idsToDelete.includes(f.id)));
+    setDeleteTarget(null);
+  };
+  
+  const handleRun = async () => {
+    const apiKey = await SecureStore.getItemAsync('pocketforge_apikey_daytona');
+    if (!apiKey) {
+      Alert.alert('محتاج مفتاح', 'روح لشاشة الإعدادات واحفظ مفتاح Daytona الأول');
+      return;
+    }
+
+    setRunVisible(true);
+    setRunStage('idle');
+    setRunTunnelUrl(undefined);
+
+    try {
+      // نحاول نستخدم Sandbox موجود من قبل لنفس المشروع بدل ما ننشئ واحد جديد
+      // (كل Sandbox جديد بياخد مساحة من الحساب، وده كان بيسبب امتلاء المساحة بسرعة)
+      let sandboxId = await loadSandboxId(projectId);
+
+      if (!sandboxId) {
+        setRunMessage('جاري إنشاء بيئة تشغيل جديدة...');
+        sandboxId = await createSandbox(apiKey);
+        await saveSandboxId(projectId, sandboxId);
+      } else {
+        setRunMessage('جاري إعادة الاتصال ببيئة التشغيل الموجودة...');
+      }
+
+      setRunMessage('جاري رفع ملفات المشروع...');
+      await uploadProjectFiles(apiKey, sandboxId, projectId, files, (progress) => {
+        setRunMessage(`جاري رفع الملفات... (${progress.done}/${progress.total})`);
+      });
+
+      const expoToken = await SecureStore.getItemAsync('pocketforge_apikey_expo');
+      const tunnelUrl = await runExpoTunnel(apiKey, sandboxId, (progress) => {
+        setRunStage(progress.stage);
+        setRunMessage(progress.message);
+        if (progress.tunnelUrl) setRunTunnelUrl(progress.tunnelUrl);
+      }, expoToken ?? undefined);
+
+      setRunTunnelUrl(tunnelUrl);
+    } catch (err: any) {
+      // لو الـ Sandbox القديم اتحذف/وقف من عند Daytona (خمول طويل مثلًا)، نمسح الـ id المحفوظ
+      // عشان المحاولة الجاية تنشئ واحد جديد بدل ما تفضل تفشل على نفس الـ id الميت
+      if (err?.message?.includes('404')) {
+        await clearSandboxId(projectId);
+      }
+      setRunStage('failed');
+      setRunMessage(err?.message ?? 'حصلت مشكلة غير متوقعة أثناء التشغيل');
+    }
   };
 
   return (
     <View style={styles.container}>
       <View style={styles.topbar}>
-        <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+        <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
           <Ionicons name="chevron-back" size={20} color={colors.text} />
         </TouchableOpacity>
-        <Text style={styles.title} numberOfLines={1}>{projectName}</Text>
+        <Text style={styles.title} numberOfLines={1}>{currentFolderName}</Text>
+        <TouchableOpacity style={styles.iconBtn} onPress={handleRun}>
+          <Ionicons name="play" size={18} color={colors.accent} />
+        </TouchableOpacity>
         <TouchableOpacity style={styles.iconBtn} onPress={openDrawer}>
           <Ionicons name="menu" size={20} color={colors.text} />
         </TouchableOpacity>
@@ -116,23 +445,15 @@ export default function FilesScreen({ route, navigation }: any) {
         </View>
 
         <FlatList
-          data={files}
+          data={visibleFiles}
           keyExtractor={(item) => item.id}
           renderItem={({ item }) => (
             <TouchableOpacity
               style={styles.ftRow}
-              onPress={() => {
-                if (item.type === 'file') {
-                  navigation.navigate('Editor', {
-                    projectName,
-                    files,
-                    initialFileId: item.id,
-                  });
-                }
-              }}
-              onLongPress={() => item.type === 'file' && handleExport(item.name)}
+              onPress={() => openItem(item)}
+              onLongPress={() => openMenuFor(item)}
               activeOpacity={0.7}
-              >
+            >
               {item.type === 'folder' ? (
                 <View style={styles.folderIcon}>
                   <Ionicons name="folder" size={17} color={colors.accent} />
@@ -197,6 +518,38 @@ export default function FilesScreen({ route, navigation }: any) {
         placeholder="مثال: components"
         onCancel={() => setFolderModalVisible(false)}
         onSubmit={handleCreateFolder}
+      />
+      <InputModal
+        visible={!!renameTarget}
+        title="إعادة تسمية"
+        placeholder="الاسم الجديد"
+        initialValue={renameTarget?.name}
+        submitLabel="حفظ"
+        onCancel={() => setRenameTarget(null)}
+        onSubmit={handleRenameSubmit}
+      />
+
+      <ActionModal
+        visible={!!deleteTarget}
+        title={deleteTarget?.name ?? ''}
+        subtitle={deleteTarget?.type === 'folder' ? 'هيتحذف المجلد وكل اللي جواه' : 'اختر إجراء'}
+        onCancel={() => setDeleteTarget(null)}
+        options={[{ label: 'حذف', onPress: handleDeleteConfirm, destructive: true }]}
+      />
+
+      <FileActionMenu
+        visible={menuVisible}
+        target={menuTarget}
+        onClose={() => setMenuVisible(false)}
+        onAction={handleMenuAction}
+      />
+
+      <RunSandboxModal
+        visible={runVisible}
+        stage={runStage}
+        message={runMessage}
+        tunnelUrl={runTunnelUrl}
+        onClose={() => setRunVisible(false)}
       />
     </View>
   );

@@ -1,5 +1,5 @@
 // src/components/InputModal.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, Modal,
   Pressable, TextInput, KeyboardAvoidingView, Platform,
@@ -12,10 +12,29 @@ interface Props {
   placeholder: string;
   onCancel: () => void;
   onSubmit: (value: string) => void;
+  // قيمة ابتدائية تظهر جاهزة للتعديل جوا الحقل (مفيدة لإعادة التسمية) - اختيارية
+  initialValue?: string;
+  // نص الزرار الرئيسي - افتراضيًا "إنشاء"، ممكن تغيّره لـ "حفظ" مثلًا
+  submitLabel?: string;
 }
 
-export default function InputModal({ visible, title, placeholder, onCancel, onSubmit }: Props) {
+export default function InputModal({
+  visible,
+  title,
+  placeholder,
+  onCancel,
+  onSubmit,
+  initialValue,
+  submitLabel,
+}: Props) {
   const [value, setValue] = useState('');
+
+  // كل ما المودال يتفتح، نملأ الحقل بالقيمة الابتدائية (لو فيه) عشان تبقى جاهزة للتعديل مباشرة
+  useEffect(() => {
+    if (visible) {
+      setValue(initialValue ?? '');
+    }
+  }, [visible, initialValue]);
 
   const handleSubmit = () => {
     if (!value.trim()) return;
@@ -45,9 +64,10 @@ export default function InputModal({ visible, title, placeholder, onCancel, onSu
             placeholderTextColor={colors.textFaint}
             textAlign="right"
             autoFocus
+            selectTextOnFocus
           />
           <TouchableOpacity style={styles.createBtn} onPress={handleSubmit} activeOpacity={0.85}>
-            <Text style={styles.createBtnText}>إنشاء</Text>
+            <Text style={styles.createBtnText}>{submitLabel ?? 'إنشاء'}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
             <Text style={styles.cancelText}>إلغاء</Text>
