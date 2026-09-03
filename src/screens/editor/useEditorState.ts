@@ -71,13 +71,18 @@ export function useEditorState({ initialContent, onDirtyChange }: UseEditorState
     }
   }, [handleContentChanged, handleReady]);
 
+  // تحميل ملف جديد جوا المحرر (فتح ملف - مش تعديل من المستخدم)
+  // ملحوظة مهمة: هنا مبنستدعيش onDirtyChange خالص - فتح ملف مجرد عرض لمحتوى
+  // محفوظ بالفعل، مش تعديل محتاج حفظ. استدعاء onDirtyChange هنا كان بيسبب
+  // بق خطير: بيحفظ محتوى فاضي فوق المحتوى الحقيقي لحظة فتح أي ملف لأول مرة،
+  // لأن setContent مش بيتطبّق فورًا (React بيأجله)، فالكود اللي بيسمع لـ
+  // onDirtyChange كان بيقرا القيمة القديمة (الفاضية) بدل المحتوى اللي لسه بيتحمّل
   const loadFile = useCallback((newContent: string) => {
     savedContentRef.current = newContent;
     setContent(newContent);
     setIsDirty(false);
-    onDirtyChange?.(false);
     postToEditor('setContent', newContent);
-  }, [postToEditor, onDirtyChange]);
+  }, [postToEditor]);
 
   const markSaved = useCallback(() => {
     savedContentRef.current = content;
