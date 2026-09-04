@@ -145,15 +145,27 @@ async function uploadFileContent(
     type: 'text/plain',
   } as any);
 
+  const uploadUrl = `${TOOLBOX_PROXY_BASE}/${sandboxId}/files/upload?path=${encodeURIComponent(path)}`;
+
   try {
-    await daytonaFetch(
-      apiKey,
-      `${TOOLBOX_PROXY_BASE}/${sandboxId}/files/upload?path=${encodeURIComponent(path)}`,
-      {
-        method: 'POST',
-        body: form,
-      }
-    );
+    // مستخدمين XMLHttpRequest هنا بدل fetch عمدًا - نسخة fetch الجديدة في Expo
+    // (expo/fetch) فيها باغ معروف وغير محلول مع FormData اللي فيها ملفات
+    // ("Unsupported FormDataPart implementation")، وXMLHttpRequest القديمة
+    // بتدعم نفس شكل {uri, name, type} بشكل سليم من غير المشكلة دي
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', uploadUrl);
+      xhr.setRequestHeader('Authorization', `Bearer ${apiKey.trim()}`);
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) {
+          resolve();
+        } else {
+          reject(new DaytonaError(`طلب رفع الملف فشل (${xhr.status}) - ${xhr.responseText}`));
+        }
+      };
+      xhr.onerror = () => reject(new DaytonaError('فشل الاتصال أثناء رفع الملف'));
+      xhr.send(form as any);
+    });
   } finally {
     try {
       tempFile.delete();
@@ -303,12 +315,16 @@ export async function runExpoTunnel(
   const previewUrl = preview.url;
   const previewHost = previewUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-  onProgress({ stage: 'installing', message: 'جاري تثبيت الحزم...' });
+  onProgress({ stage: 'installing', message: 'جاري تثبيت الحزم وتشغيل خادم Expo...' });
   // ملحوظة: مبقيناش محتاجين توكن Expo أو @expo/ngrok خالص هنا، لأننا مش بنستخدم
   // tunnel بتاع Expo أصلًا - العرض العام بيحصل عبر Daytona preview URL مباشرة
-  await execInSession(apiKey, sandboxId, sessionId, `cd ${SANDBOX_ROOT} && npm install`, false);
-
-  onProgress({ stage: 'starting', message: 'جاري تشغيل خادم Expo...' });
+  //
+  // مهم: npm install وتشغيل expo لازم يبقوا في نفس الأمر المتصل بـ && (مش
+  // استدعائين منفصلين) - جرّبنا قبل كده استدعاء npm install لوحده بـ
+  // runAsync:false على افتراض إنه هيستنى التثبيت يخلص، لكنه مبيستناش فعليًا
+  // بشكل موثوق، فكان expo start بيتشغل قبل ما التثبيت يخلص ("module 'expo' is
+  // not installed"). الدمج في أمر واحد بيضمن إن الشل نفسه يستنى.
+  //
   // EXPO_PACKAGER_PROXY_URL و REACT_NATIVE_PACKAGER_HOSTNAME بيخلوا Metro يبلّغ
   // عن العنوان العام الصح بدل 127.0.0.1 (نفس الطريقة اللي Replit وDaytona بيستخدموها).
   // وقبلها بنقفل أي سيرفر قديم شغال على نفس البورت من محاولة سابقة (لو الـ Sandbox معاد استخدامه)
@@ -316,7 +332,7 @@ export async function runExpoTunnel(
     apiKey,
     sandboxId,
     sessionId,
-    `pkill -f "expo start" 2>/dev/null; pkill -f "metro" 2>/dev/null; sleep 1; export EXPO_PACKAGER_PROXY_URL="${previewUrl}"; export REACT_NATIVE_PACKAGER_HOSTNAME="${previewHost}"; cd ${SANDBOX_ROOT} && CI=1 npx expo start --port ${METRO_PORT}`,
+    `pkill -f "expo start" 2>/dev/null; pkill -f "metro" 2>/dev/null; sleep 1; export EXPO_PACKAGER_PROXY_URL="${previewUrl}"; export REACT_NATIVE_PACKAGER_HOSTNAME="${previewHost}"; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && CI=1 npx expo start --port ${METRO_PORT}`,
     true
   );
 
