@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  Alert, Animated, Dimensions, Easing,
+  Alert, Animated, Dimensions, Easing, Image, Modal,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -24,9 +24,27 @@ import {
   buildFilePath,
   getDescendantIds,
 } from './editor/useEditorFile';
+import {
+  DEFAULT_ICON_BASE64,
+  DEFAULT_ADAPTIVE_ICON_BASE64,
+  DEFAULT_SPLASH_ICON_BASE64,
+  DEFAULT_FAVICON_BASE64,
+  isImageFile,
+} from '../theme/defaultAssets';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.62;
+
+// يحوّل اسم المشروع (بالعربي أو الإنجليزي) لصيغة slug صالحة لـ package.json/app.json
+// (حروف صغيرة وأرقام وشرطات بس - لو الاسم كله عربي أو رموز، نرجع اسم افتراضي آمن)
+function slugifyProjectName(name: string): string {
+  const slug = name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return slug || 'my-app';
+}
 
 const getMockFiles = (language: 'typescript' | 'javascript'): ProjectFile[] => {
   const appExt = language === 'javascript' ? 'jsx' : 'tsx';
@@ -35,6 +53,11 @@ const getMockFiles = (language: 'typescript' | 'javascript'): ProjectFile[] => {
     { id: '2', name: 'package.json', type: 'file', parentId: null },
     { id: '3', name: 'src', type: 'folder', parentId: null },
     { id: '4', name: 'app.json', type: 'file', parentId: null },
+    { id: '6', name: 'assets', type: 'folder', parentId: null },
+    { id: '7', name: 'icon.png', type: 'file', parentId: '6' },
+    { id: '8', name: 'adaptive-icon.png', type: 'file', parentId: '6' },
+    { id: '9', name: 'splash-icon.png', type: 'file', parentId: '6' },
+    { id: '10', name: 'favicon.png', type: 'file', parentId: '6' },
   ];
   if (language === 'typescript') {
     files.push({ id: '5', name: 'tsconfig.json', type: 'file', parentId: null });
@@ -45,12 +68,14 @@ const getMockFiles = (language: 'typescript' | 'javascript'): ProjectFile[] => {
 // المحتوى الحقيقي اللي لازم يتحفظ لكل ملف افتراضي عشان مشروع Expo يشتغل فعليًا
 // (بدل المحتوى الفاضي/العام اللي بيتولّد تلقائيًا حسب امتداد الملف بس)
 const getDefaultFileContents = (
-  language: 'typescript' | 'javascript'
+  language: 'typescript' | 'javascript',
+  projectName: string
 ): Record<string, string> => {
   const isTs = language === 'typescript';
+  const slug = slugifyProjectName(projectName);
 
   const packageJson = {
-    name: 'pocketforge-project',
+    name: slug,
     version: '1.0.0',
     main: 'expo/AppEntry.js',
     scripts: {
@@ -78,12 +103,27 @@ const getDefaultFileContents = (
 
   const appJson = {
     expo: {
-      name: 'PocketForge Project',
-      slug: 'pocketforge-project',
+      name: projectName,
+      slug,
       version: '1.0.0',
       orientation: 'portrait',
       userInterfaceStyle: 'automatic',
       newArchEnabled: true,
+      icon: './assets/icon.png',
+      splash: {
+        image: './assets/splash-icon.png',
+        resizeMode: 'contain',
+        backgroundColor: '#100E17',
+      },
+      android: {
+        adaptiveIcon: {
+          foregroundImage: './assets/adaptive-icon.png',
+          backgroundColor: '#100E17',
+        },
+      },
+      web: {
+        favicon: './assets/favicon.png',
+      },
     },
   };
 
@@ -93,7 +133,7 @@ import { StyleSheet, Text, View } from 'react-native';
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text>مرحبًا من PocketForge!</Text>
+      <Text>مرحبًا من ${projectName}!</Text>
       <StatusBar style="auto" />
     </View>
   );
@@ -113,6 +153,10 @@ const styles = StyleSheet.create({
     '1': appComponent,
     '2': JSON.stringify(packageJson, null, 2) + '\n',
     '4': JSON.stringify(appJson, null, 2) + '\n',
+    '7': DEFAULT_ICON_BASE64,
+    '8': DEFAULT_ADAPTIVE_ICON_BASE64,
+    '9': DEFAULT_SPLASH_ICON_BASE64,
+    '10': DEFAULT_FAVICON_BASE64,
   };
 
   if (isTs) {
@@ -151,6 +195,7 @@ export default function FilesScreen({ route, navigation }: any) {
   const [runStage, setRunStage] = useState<RunProgressStage | 'idle'>('idle');
   const [runMessage, setRunMessage] = useState('');
   const [runTunnelUrl, setRunTunnelUrl] = useState<string | undefined>(undefined);
+  const [imagePreview, setImagePreview] = useState<{ name: string; base64: string | null } | null>(null);
 
   // مكدس المجلدات المفتوحة - آخر عنصر هو المجلد الحالي، فاضي يعني إحنا في الجذر
   const [folderStack, setFolderStack] = useState<{ id: string; name: string }[]>([]);
@@ -172,7 +217,7 @@ export default function FilesScreen({ route, navigation }: any) {
         setFiles(defaults);
         saveProjectFiles(projectId, defaults);
 
-        const defaultContents = getDefaultFileContents(language || 'typescript');
+        const defaultContents = getDefaultFileContents(language || 'typescript', projectName || 'مشروعي');
         Object.entries(defaultContents).forEach(([fileId, content]) => {
           saveFileContent(projectId, fileId, content);
         });
@@ -262,6 +307,8 @@ export default function FilesScreen({ route, navigation }: any) {
   const openItem = (item: ProjectFile) => {
     if (item.type === 'folder') {
       setFolderStack((prev) => [...prev, { id: item.id, name: item.name }]);
+    } else if (isImageFile(item.name)) {
+      openImagePreview(item.id, item.name);
     } else {
       navigation.navigate('Editor', {
         projectId,
@@ -270,6 +317,11 @@ export default function FilesScreen({ route, navigation }: any) {
         initialFileId: item.id,
       });
     }
+  };
+
+  const openImagePreview = async (fileId: string, fileName: string) => {
+    const base64 = await loadFileContent(projectId, fileId);
+    setImagePreview({ name: fileName, base64: base64 ?? null });
   };
 
   const openMenuFor = (item: ProjectFile) => {
@@ -551,6 +603,31 @@ export default function FilesScreen({ route, navigation }: any) {
         tunnelUrl={runTunnelUrl}
         onClose={() => setRunVisible(false)}
       />
+
+      <Modal
+        visible={!!imagePreview}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setImagePreview(null)}
+      >
+        <TouchableOpacity
+          style={styles.imagePreviewOverlay}
+          activeOpacity={1}
+          onPress={() => setImagePreview(null)}
+        >
+          <Text style={styles.imagePreviewName}>{imagePreview?.name}</Text>
+          {imagePreview?.base64 ? (
+            <Image
+              source={{ uri: `data:image/png;base64,${imagePreview.base64}` }}
+              style={styles.imagePreviewImage}
+              resizeMode="contain"
+            />
+          ) : (
+            <Text style={styles.imagePreviewName}>مفيش محتوى محفوظ للصورة دي</Text>
+          )}
+          <Text style={styles.imagePreviewHint}>دوس في أي مكان للإغلاق</Text>
+        </TouchableOpacity>
+      </Modal>
     </View>
   );
 }
@@ -604,4 +681,27 @@ const styles = StyleSheet.create({
   },
   drawerItemActive: { backgroundColor: colors.accent },
   drawerLabel: { fontSize: 14, color: colors.textMuted, fontFamily: fonts.uiSemibold },
+  imagePreviewOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  imagePreviewImage: {
+    width: '90%',
+    height: '70%',
+  },
+  imagePreviewName: {
+    color: colors.text,
+    fontFamily: fonts.uiSemibold,
+    fontSize: 15,
+    marginBottom: spacing.md,
+  },
+  imagePreviewHint: {
+    color: colors.textFaint,
+    fontFamily: fonts.ui,
+    fontSize: 12,
+    marginTop: spacing.lg,
+  },
 });

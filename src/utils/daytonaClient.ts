@@ -4,6 +4,17 @@
 import { ProjectFile, buildFilePath } from '../screens/editor/useEditorFile';
 import { loadFileContent } from './projectStorage';
 import { File, Paths } from 'expo-file-system';
+import { isImageFile } from '../theme/defaultAssets';
+
+// يحوّل نص base64 لـ Uint8Array عشان نكتب بيانات binary حقيقية (صور) بدل نص
+function base64ToBytes(base64: string): Uint8Array {
+  const binaryString = atob(base64);
+  const bytes = new Uint8Array(binaryString.length);
+  for (let i = 0; i < binaryString.length; i++) {
+    bytes[i] = binaryString.charCodeAt(i);
+  }
+  return bytes;
+}
 
 const DAYTONA_API_BASE = 'https://app.daytona.io/api';
 const TOOLBOX_PROXY_BASE = 'https://proxy.app.daytona.io/toolbox';
@@ -136,13 +147,18 @@ async function uploadFileContent(
   // React Native مش بيتعامل صح مع Blob مبني من نص مباشرة في FormData -
   // لازم نكتب المحتوى لملف حقيقي مؤقت الأول، وبعدين نرفعه بمساره (uri) الحقيقي
   const tempFile = new File(Paths.cache, `upload-${Date.now()}-${fileName}`);
-  tempFile.write(content);
+  if (isImageFile(fileName)) {
+    // محتوى الصور متخزن كـ base64 - لازم نحوّله لبيانات binary حقيقية قبل الكتابة
+    tempFile.write(base64ToBytes(content));
+  } else {
+    tempFile.write(content);
+  }
 
   const form = new FormData();
   form.append('file', {
     uri: tempFile.uri,
     name: fileName,
-    type: 'text/plain',
+    type: isImageFile(fileName) ? 'image/png' : 'text/plain',
   } as any);
 
   const uploadUrl = `${TOOLBOX_PROXY_BASE}/${sandboxId}/files/upload?path=${encodeURIComponent(path)}`;
