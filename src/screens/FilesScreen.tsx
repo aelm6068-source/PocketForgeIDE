@@ -24,154 +24,11 @@ import {
   buildFilePath,
   getDescendantIds,
 } from './editor/useEditorFile';
-import {
-  DEFAULT_ICON_BASE64,
-  DEFAULT_ADAPTIVE_ICON_BASE64,
-  DEFAULT_SPLASH_ICON_BASE64,
-  DEFAULT_FAVICON_BASE64,
-  isImageFile,
-} from '../theme/defaultAssets';
+import { isImageFile } from '../theme/defaultAssets';
+import { buildProjectFiles, buildProjectFileContents } from '../utils/projectTemplate';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.62;
-
-// يحوّل اسم المشروع (بالعربي أو الإنجليزي) لصيغة slug صالحة لـ package.json/app.json
-// (حروف صغيرة وأرقام وشرطات بس - لو الاسم كله عربي أو رموز، نرجع اسم افتراضي آمن)
-function slugifyProjectName(name: string): string {
-  const slug = name
-    .trim()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  return slug || 'my-app';
-}
-
-const getMockFiles = (language: 'typescript' | 'javascript'): ProjectFile[] => {
-  const appExt = language === 'javascript' ? 'jsx' : 'tsx';
-  const files: ProjectFile[] = [
-    { id: '1', name: `App.${appExt}`, type: 'file', parentId: null },
-    { id: '2', name: 'package.json', type: 'file', parentId: null },
-    { id: '3', name: 'src', type: 'folder', parentId: null },
-    { id: '4', name: 'app.json', type: 'file', parentId: null },
-    { id: '6', name: 'assets', type: 'folder', parentId: null },
-    { id: '7', name: 'icon.png', type: 'file', parentId: '6' },
-    { id: '8', name: 'adaptive-icon.png', type: 'file', parentId: '6' },
-    { id: '9', name: 'splash-icon.png', type: 'file', parentId: '6' },
-    { id: '10', name: 'favicon.png', type: 'file', parentId: '6' },
-  ];
-  if (language === 'typescript') {
-    files.push({ id: '5', name: 'tsconfig.json', type: 'file', parentId: null });
-  }
-  return files;
-};
-
-// المحتوى الحقيقي اللي لازم يتحفظ لكل ملف افتراضي عشان مشروع Expo يشتغل فعليًا
-// (بدل المحتوى الفاضي/العام اللي بيتولّد تلقائيًا حسب امتداد الملف بس)
-const getDefaultFileContents = (
-  language: 'typescript' | 'javascript',
-  projectName: string
-): Record<string, string> => {
-  const isTs = language === 'typescript';
-  const slug = slugifyProjectName(projectName);
-
-  const packageJson = {
-    name: slug,
-    version: '1.0.0',
-    main: 'expo/AppEntry.js',
-    scripts: {
-      start: 'expo start',
-      android: 'expo start --android',
-      ios: 'expo start --ios',
-      web: 'expo start --web',
-    },
-    dependencies: {
-      expo: '~57.0.0',
-      'expo-status-bar': '~57.0.0',
-      react: '19.2.0',
-      'react-native': '0.86.3',
-    },
-    ...(isTs
-      ? {
-          devDependencies: {
-            typescript: '~5.9.2',
-            '@types/react': '~19.2.0',
-          },
-        }
-      : {}),
-    private: true,
-  };
-
-  const appJson = {
-    expo: {
-      name: projectName,
-      slug,
-      version: '1.0.0',
-      orientation: 'portrait',
-      userInterfaceStyle: 'automatic',
-      newArchEnabled: true,
-      icon: './assets/icon.png',
-      splash: {
-        image: './assets/splash-icon.png',
-        resizeMode: 'contain',
-        backgroundColor: '#100E17',
-      },
-      android: {
-        adaptiveIcon: {
-          foregroundImage: './assets/adaptive-icon.png',
-          backgroundColor: '#100E17',
-        },
-      },
-      web: {
-        favicon: './assets/favicon.png',
-      },
-    },
-  };
-
-  const appComponent = `import { StatusBar } from 'expo-status-bar';
-import { StyleSheet, Text, View } from 'react-native';
-
-export default function App() {
-  return (
-    <View style={styles.container}>
-      <Text>مرحبًا من ${projectName}!</Text>
-      <StatusBar style="auto" />
-    </View>
-  );
-}
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-});
-`;
-
-  const contents: Record<string, string> = {
-    '1': appComponent,
-    '2': JSON.stringify(packageJson, null, 2) + '\n',
-    '4': JSON.stringify(appJson, null, 2) + '\n',
-    '7': DEFAULT_ICON_BASE64,
-    '8': DEFAULT_ADAPTIVE_ICON_BASE64,
-    '9': DEFAULT_SPLASH_ICON_BASE64,
-    '10': DEFAULT_FAVICON_BASE64,
-  };
-
-  if (isTs) {
-    contents['5'] = JSON.stringify(
-      {
-        extends: 'expo/tsconfig.base',
-        compilerOptions: { strict: true },
-      },
-      null,
-      2
-    ) + '\n';
-  }
-
-  return contents;
-};
 
 const drawerItems = [
   { key: 'files', label: 'ملفات', icon: 'folder-outline' },
@@ -213,11 +70,11 @@ export default function FilesScreen({ route, navigation }: any) {
       if (saved && saved.length > 0) {
         setFiles(saved as ProjectFile[]);
       } else {
-        const defaults = getMockFiles(language || 'typescript');
+        const defaults = buildProjectFiles(language || 'typescript');
         setFiles(defaults);
         saveProjectFiles(projectId, defaults);
 
-        const defaultContents = getDefaultFileContents(language || 'typescript', projectName || 'مشروعي');
+        const defaultContents = buildProjectFileContents(language || 'typescript', projectName || 'مشروعي');
         Object.entries(defaultContents).forEach(([fileId, content]) => {
           saveFileContent(projectId, fileId, content);
         });
