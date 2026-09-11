@@ -2,7 +2,7 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, FlatList,
-  Alert, Animated, Dimensions, Easing, Image, Modal,
+  Alert, Image, Modal, TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
@@ -14,9 +14,10 @@ import { FileIconBadge } from '../theme/fileIcons';
 import InputModal from '../components/InputModal';
 import ActionModal from '../components/ActionModal';
 import FileActionMenu, { FileActionTarget } from '../components/FileActionMenu';
-import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, saveSandboxId, loadSandboxId, clearSandboxId } from '../utils/projectStorage';
+import AppDrawer from '../components/AppDrawer';
+import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
 import * as SecureStore from 'expo-secure-store';
-import { createSandbox, uploadProjectFiles, runExpoTunnel, RunProgressStage } from '../utils/daytonaClient';
+import { createSandbox, uploadProjectFiles, runExpoTunnel, RunProgressStage, deleteSandbox, listSandboxes } from '../utils/daytonaClient';
 import RunSandboxModal from '../components/RunSandboxModal';
 import {
   ProjectFile,
@@ -26,16 +27,6 @@ import {
 } from './editor/useEditorFile';
 import { isImageFile } from '../theme/defaultAssets';
 import { buildProjectFiles, buildProjectFileContents } from '../utils/projectTemplate';
-
-const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const DRAWER_WIDTH = SCREEN_WIDTH * 0.62;
-
-const drawerItems = [
-  { key: 'files', label: 'ملفات', icon: 'folder-outline' },
-  { key: 'shell', label: 'Shell', icon: 'terminal-outline' },
-  { key: 'preview', label: 'معاينة', icon: 'play-outline' },
-  { key: 'ai', label: 'AI', icon: 'sparkles-outline' },
-];
 
 export default function FilesScreen({ route, navigation }: any) {
   const { projectId, projectName, language } = route.params;
@@ -53,6 +44,9 @@ export default function FilesScreen({ route, navigation }: any) {
   const [runMessage, setRunMessage] = useState('');
   const [runTunnelUrl, setRunTunnelUrl] = useState<string | undefined>(undefined);
   const [imagePreview, setImagePreview] = useState<{ name: string; base64: string | null } | null>(null);
+  // ⭐ الجديد: حالة البحث في الملفات والمجلدات
+  const [searchVisible, setSearchVisible] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   // مكدس المجلدات المفتوحة - آخر عنصر هو المجلد الحالي، فاضي يعني إحنا في الجذر
   const [folderStack, setFolderStack] = useState<{ id: string; name: string }[]>([]);
@@ -92,25 +86,31 @@ export default function FilesScreen({ route, navigation }: any) {
     saveProjectFiles(projectId, next);
   }, [projectId]);
 
-  const slideAnim = useRef(new Animated.Value(DRAWER_WIDTH)).current;
+  // ⭐ الجديد: يبني تسلسل المجلدات من الجذر لحد مجلد معين - مستخدم لما نفتح نتيجة بحث
+  // موجودة جوه مجلد تاني، عشان زرار الرجوع يشتغل صح بعدها
+  const buildFolderStackTo = useCallback((folderId: string): { id: string; name: string }[] => {
+    const chain: { id: string; name: string }[] = [];
+    let current = files.find((f) => f.id === folderId);
+    while (current) {
+      chain.unshift({ id: current.id, name: current.name });
+      const parentId: string | null = current.parentId;
+      current = parentId ? files.find((f) => f.id === parentId) : undefined;
+    }
+    return chain;
+  }, [files]);
 
-  const openDrawer = () => {
-    setDrawerOpen(true);
-    Animated.timing(slideAnim, {
-      toValue: 0,
-      duration: 280,
-      easing: Easing.out(Easing.cubic),
-      useNativeDriver: true,
-    }).start();
-  };
+  // ⭐ الجديد: نتائج البحث - بالاسم بس، وبتدور في كل ملفات ومجلدات المشروع مش بس المجلد الحالي
+  const searchResults = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return [];
+    return files
+      .filter((f) => f.name.toLowerCase().includes(q))
+      .map((f) => ({ ...f, path: buildFilePath(f.id, files) }));
+  }, [searchQuery, files]);
 
-  const closeDrawer = () => {
-    Animated.timing(slideAnim, {
-      toValue: DRAWER_WIDTH,
-      duration: 220,
-      easing: Easing.in(Easing.cubic),
-      useNativeDriver: true,
-    }).start(() => setDrawerOpen(false));
+  const closeSearch = () => {
+    setSearchVisible(false);
+    setSearchQuery('');
   };
 
   // زرار الرجوع: لو إحنا جوا مجلد، نطلع مستوى واحد بس. لو في الجذر، نقفل الشاشة كلها
@@ -133,6 +133,30 @@ export default function FilesScreen({ route, navigation }: any) {
         type: 'file',
         parentId: currentFolderId,
       };
+
+      // نقرأ الملف عن طريق fetch (بيتعامل صح مع روابط content:// من معرض الصور)
+      try {
+        const response = await fetch(picked.uri);
+        if (isImageFile(picked.name)) {
+          const blob = await response.blob();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onerror = () => reject(new Error('فشلت قراءة بيانات الصورة'));
+            reader.onload = () => {
+              const dataUrl = reader.result as string;
+              resolve(dataUrl.split(',')[1] ?? '');
+            };
+            reader.readAsDataURL(blob);
+          });
+          await saveFileContent(projectId, newFile.id, base64);
+        } else {
+          const text = await response.text();
+          await saveFileContent(projectId, newFile.id, text);
+        }
+      } catch (readErr: any) {
+        Alert.alert('تحذير', 'اتضاف الملف للقايمة لكن حصلت مشكلة في قراءة محتواه: ' + String(readErr?.message || readErr));
+      }
+
       persistFiles([...files, newFile]);
     } catch (e) {
       Alert.alert('خطأ', 'حصلت مشكلة أثناء استيراد الملف');
@@ -173,6 +197,16 @@ export default function FilesScreen({ route, navigation }: any) {
         files,
         initialFileId: item.id,
       });
+    }
+  };
+
+  // ⭐ الجديد: فتح نتيجة بحث - لو مجلد نبني مسار كامل ليه من الجذر، لو ملف نفتحه عادي
+  const handleSearchResultPress = (item: ProjectFile) => {
+    closeSearch();
+    if (item.type === 'folder') {
+      setFolderStack(buildFolderStackTo(item.id));
+    } else {
+      openItem(item);
     }
   };
 
@@ -276,7 +310,7 @@ export default function FilesScreen({ route, navigation }: any) {
     persistFiles(files.filter((f) => !idsToDelete.includes(f.id)));
     setDeleteTarget(null);
   };
-  
+
   const handleRun = async () => {
     const apiKey = await SecureStore.getItemAsync('pocketforge_apikey_daytona');
     if (!apiKey) {
@@ -289,8 +323,6 @@ export default function FilesScreen({ route, navigation }: any) {
     setRunTunnelUrl(undefined);
 
     try {
-      // نحاول نستخدم Sandbox موجود من قبل لنفس المشروع بدل ما ننشئ واحد جديد
-      // (كل Sandbox جديد بياخد مساحة من الحساب، وده كان بيسبب امتلاء المساحة بسرعة)
       let sandboxId = await loadSandboxId(projectId);
 
       if (!sandboxId) {
@@ -315,8 +347,6 @@ export default function FilesScreen({ route, navigation }: any) {
 
       setRunTunnelUrl(tunnelUrl);
     } catch (err: any) {
-      // لو الـ Sandbox القديم اتحذف/وقف من عند Daytona (خمول طويل مثلًا)، نمسح الـ id المحفوظ
-      // عشان المحاولة الجاية تنشئ واحد جديد بدل ما تفضل تفشل على نفس الـ id الميت
       if (err?.message?.includes('404')) {
         await clearSandboxId(projectId);
       }
@@ -324,7 +354,58 @@ export default function FilesScreen({ route, navigation }: any) {
       setRunMessage(err?.message ?? 'حصلت مشكلة غير متوقعة أثناء التشغيل');
     }
   };
+  const handleCleanupServer = () => {
+    Alert.alert(
+      'تنظيف السيرفر',
+      'هيتم مسح سيرفر المشروع ده (هيشتغل من جديد المرة الجاية)، وأي سيرفرات تايهة مش تابعة لأي مشروع عندك. متأكد؟',
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'مسح', style: 'destructive', onPress: runCleanupServer },
+      ]
+    );
+  };
 
+  const runCleanupServer = async () => {
+    const apiKey = await SecureStore.getItemAsync('pocketforge_apikey_daytona');
+    if (!apiKey) {
+      Alert.alert('محتاج مفتاح', 'روح لشاشة الإعدادات واحفظ مفتاح Daytona الأول');
+      return;
+    }
+
+    try {
+      // امسح سيرفر المشروع الحالي نفسه لو موجود
+      const currentSandboxId = await loadSandboxId(projectId);
+      if (currentSandboxId) {
+        await deleteSandbox(apiKey, currentSandboxId);
+        await clearSandboxId(projectId);
+      }
+
+      // اجمع كل الـ sandboxIds المعروفة (تابعة لمشاريع موجودة فعليًا) عشان منمسحش سيرفرات مشاريع تانية شغالة
+      const allProjects = (await loadProjectsList()) ?? [];
+      const knownSandboxIds = new Set<string>();
+      for (const project of allProjects) {
+        const sid = await loadSandboxId(project.id);
+        if (sid) knownSandboxIds.add(sid);
+      }
+
+      // هات كل الـ Sandboxes الفعلية من Daytona، وامسح اللي مش تابع لأي مشروع معروف
+      const liveSandboxes = await listSandboxes(apiKey);
+      let cleanedCount = 0;
+      for (const sandbox of liveSandboxes) {
+        if (!knownSandboxIds.has(sandbox.id)) {
+          await deleteSandbox(apiKey, sandbox.id);
+          cleanedCount += 1;
+        }
+      }
+
+      Alert.alert(
+        'تم',
+        `اتمسح سيرفر المشروع ده${cleanedCount > 0 ? `، وكمان ${cleanedCount} سيرفر تايه` : ''}.`
+      );
+    } catch (err: any) {
+      Alert.alert('خطأ', 'حصلت مشكلة أثناء تنظيف السيرفر: ' + String(err?.message || err));
+    }
+  };
   return (
     <View style={styles.container}>
       <View style={styles.topbar}>
@@ -332,10 +413,10 @@ export default function FilesScreen({ route, navigation }: any) {
           <Ionicons name="chevron-back" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.title} numberOfLines={1}>{currentFolderName}</Text>
-        <TouchableOpacity style={styles.iconBtn} onPress={handleRun}>
-          <Ionicons name="play" size={18} color={colors.accent} />
+        <TouchableOpacity style={styles.iconBtn} onPress={() => setSearchVisible(true)}>
+          <Ionicons name="search" size={18} color={colors.text} />
         </TouchableOpacity>
-        <TouchableOpacity style={styles.iconBtn} onPress={openDrawer}>
+        <TouchableOpacity style={styles.iconBtn} onPress={() => setDrawerOpen(true)}>
           <Ionicons name="menu" size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
@@ -376,43 +457,14 @@ export default function FilesScreen({ route, navigation }: any) {
         />
       </View>
 
-      {drawerOpen && (
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />
-      )}
-
-      <Animated.View
-        style={[
-          styles.drawer,
-          { width: DRAWER_WIDTH, transform: [{ translateX: slideAnim }] },
-        ]}
-        pointerEvents={drawerOpen ? 'auto' : 'none'}
-      >
-        <View style={styles.drawerHeader}>
-          <TouchableOpacity onPress={closeDrawer}>
-            <Ionicons name="close" size={22} color={colors.textMuted} />
-          </TouchableOpacity>
-        </View>
-        {drawerItems.map((item) => (
-          <TouchableOpacity
-            key={item.key}
-            style={[styles.drawerItem, activeItem === item.key && styles.drawerItemActive]}
-            onPress={() => {
-              setActiveItem(item.key);
-              closeDrawer();
-            }}
-            activeOpacity={0.75}
-          >
-            <Ionicons
-              name={item.icon as any}
-              size={22}
-              color={activeItem === item.key ? 'white' : colors.textMuted}
-            />
-            <Text style={[styles.drawerLabel, activeItem === item.key && { color: 'white' }]}>
-              {item.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </Animated.View>
+      <AppDrawer
+        visible={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        activeItem={activeItem}
+        onSelectItem={setActiveItem}
+        onRunPress={handleRun}
+        onCleanupPress={handleCleanupServer}
+      />
 
       <InputModal
         visible={fileModalVisible}
@@ -485,6 +537,61 @@ export default function FilesScreen({ route, navigation }: any) {
           <Text style={styles.imagePreviewHint}>دوس في أي مكان للإغلاق</Text>
         </TouchableOpacity>
       </Modal>
+
+      {/* ⭐ الجديد: مودال البحث في الملفات والمجلدات */}
+      <Modal
+        visible={searchVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={closeSearch}
+      >
+        <View style={styles.searchOverlay}>
+          <View style={styles.searchBox}>
+            <View style={styles.searchHeader}>
+              <TextInput
+                style={styles.searchInput}
+                placeholder="ابحث عن ملف أو مجلد..."
+                placeholderTextColor={colors.textFaint}
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                autoFocus
+              />
+              <TouchableOpacity onPress={closeSearch}>
+                <Ionicons name="close" size={22} color={colors.textMuted} />
+              </TouchableOpacity>
+            </View>
+            <FlatList
+              data={searchResults}
+              keyExtractor={(item) => item.id}
+              keyboardShouldPersistTaps="handled"
+              ListEmptyComponent={
+                searchQuery.trim().length > 0 ? (
+                  <Text style={styles.searchEmpty}>مفيش نتائج</Text>
+                ) : null
+              }
+              renderItem={({ item }) => (
+                <TouchableOpacity
+                  style={styles.searchResultRow}
+                  onPress={() => handleSearchResultPress(item)}
+                  activeOpacity={0.7}
+                >
+                  {item.type === 'folder' ? (
+                    <View style={styles.folderIcon}>
+                      <Ionicons name="folder" size={17} color={colors.accent} />
+                    </View>
+                  ) : (
+                    <FileIconBadge fileName={item.name} />
+                  )}
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.ftName}>{item.name}</Text>
+                    <Text style={styles.searchResultPath} numberOfLines={1}>{item.path}</Text>
+                  </View>
+                </TouchableOpacity>
+              )}
+            />
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -498,6 +605,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
+    gap: spacing.sm
   },
   iconBtn: {
     width: 34, height: 34, borderRadius: radius.md,
@@ -521,23 +629,6 @@ const styles = StyleSheet.create({
   },
   folderIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   ftName: { color: colors.text, fontSize: 14, fontFamily: fonts.ui },
-  overlay: {
-    position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.5)', zIndex: 40,
-  },
-  drawer: {
-    position: 'absolute', top: 0, right: 0, bottom: 0,
-    backgroundColor: '#0C0A13',
-    borderLeftWidth: 1, borderLeftColor: colors.border,
-    padding: spacing.md, gap: 6, zIndex: 50,
-  },
-  drawerHeader: { alignItems: 'flex-start', marginBottom: spacing.lg, paddingTop: spacing.sm },
-  drawerItem: {
-    flexDirection: 'row', alignItems: 'center', gap: 12,
-    paddingVertical: 13, paddingHorizontal: 14, borderRadius: radius.lg,
-  },
-  drawerItemActive: { backgroundColor: colors.accent },
-  drawerLabel: { fontSize: 14, color: colors.textMuted, fontFamily: fonts.uiSemibold },
   imagePreviewOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.9)',
@@ -560,5 +651,54 @@ const styles = StyleSheet.create({
     fontFamily: fonts.ui,
     fontSize: 12,
     marginTop: spacing.lg,
+  },
+  // ⭐ الجديد: ستايلات مودال البحث
+  searchOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    justifyContent: 'flex-start',
+    paddingTop: 60,
+    paddingHorizontal: spacing.lg,
+  },
+  searchBox: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    maxHeight: '75%',
+    overflow: 'hidden',
+  },
+  searchHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  searchInput: {
+    flex: 1,
+    color: colors.text,
+    fontFamily: fonts.ui,
+    fontSize: 15,
+    paddingVertical: 6,
+  },
+  searchEmpty: {
+    color: colors.textFaint,
+    fontFamily: fonts.ui,
+    fontSize: 13,
+    textAlign: 'center',
+    paddingVertical: spacing.lg,
+  },
+  searchResultRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 12,
+    paddingVertical: 10, paddingHorizontal: spacing.md,
+  },
+  searchResultPath: {
+    color: colors.textFaint,
+    fontSize: 11,
+    fontFamily: fonts.ui,
+    marginTop: 2,
   },
 });

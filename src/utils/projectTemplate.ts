@@ -25,11 +25,16 @@ function slugifyProjectName(name: string): string {
 
 // شجرة الملفات الافتراضية لأي مشروع جديد - بتشمل:
 // - App.tsx/jsx + package.json + app.json في الجذر
-// - src/theme/colors.ts (ألوان أساسية جاهزة)
-// - src/locales/ (عربي/إنجليزي/فرنساوي + ملف i18n.ts بسيط يقرأهم)
+// - src/theme/colors.ts|js (ألوان أساسية جاهزة)
+// - src/locales/ (عربي/إنجليزي/فرنساوي + ملف i18n.ts|js بسيط يقرأهم)
 // - assets/ (أيقونات افتراضية حقيقية)
 export function buildProjectFiles(language: ProjectLanguageKind): ProjectFile[] {
   const appExt = language === 'javascript' ? 'jsx' : 'tsx';
+  // ⭐ الإصلاح: ملفات الثيم واللغات لازم تاخد امتداد يطابق لغة المشروع فعليًا -
+  // كانت دايمًا .ts حتى في مشاريع JavaScript، وده كان بيحط كود TypeScript
+  // (types, generics) جوا مشروع مفيهوش typescript كـ dependency خالص،
+  // فالبناء كان بيقع بس في مشاريع JS تحديدًا
+  const scriptExt = language === 'javascript' ? 'js' : 'ts';
   const files: ProjectFile[] = [
     { id: '1', name: `App.${appExt}`, type: 'file', parentId: null },
     { id: '2', name: 'package.json', type: 'file', parentId: null },
@@ -41,12 +46,12 @@ export function buildProjectFiles(language: ProjectLanguageKind): ProjectFile[] 
     { id: '9', name: 'splash-icon.png', type: 'file', parentId: '6' },
     { id: '10', name: 'favicon.png', type: 'file', parentId: '6' },
     { id: '11', name: 'theme', type: 'folder', parentId: '3' },
-    { id: '12', name: 'colors.ts', type: 'file', parentId: '11' },
+    { id: '12', name: `colors.${scriptExt}`, type: 'file', parentId: '11' },
     { id: '13', name: 'locales', type: 'folder', parentId: '3' },
     { id: '14', name: 'ar.json', type: 'file', parentId: '13' },
     { id: '15', name: 'en.json', type: 'file', parentId: '13' },
     { id: '16', name: 'fr.json', type: 'file', parentId: '13' },
-    { id: '17', name: 'i18n.ts', type: 'file', parentId: '13' },
+    { id: '17', name: `i18n.${scriptExt}`, type: 'file', parentId: '13' },
   ];
   if (language === 'typescript') {
     files.push({ id: '5', name: 'tsconfig.json', type: 'file', parentId: null });
@@ -116,6 +121,7 @@ export function buildProjectFileContents(
   };
 
   // ثيم بسيط جاهز يقدر المستخدم يعدّل عليه بدل ما يكتب ألوان جوا كل شاشة لوحده
+  // (محتواه أصلًا من غير أي صياغة TypeScript، فهو صالح لـ .ts و.js من غير تعديل)
   const themeColors = `export const colors = {
   background: '#ffffff',
   text: '#111111',
@@ -129,6 +135,7 @@ export function buildProjectFileContents(
   const enJson = { welcome: 'Welcome to' };
   const frJson = { welcome: 'Bienvenue dans' };
 
+  // نسخة TypeScript (فيها types) - تُستخدم بس لما language === 'typescript'
   const i18nTs = `import ar from './ar.json';
 import en from './en.json';
 import fr from './fr.json';
@@ -143,7 +150,21 @@ export function t(key: string, lang: Language = 'ar'): string {
 }
 `;
 
-  // App.tsx الافتراضي بيستخدم فعليًا ملف الثيم وملف اللغات - مش بس موجودين من غير استخدام
+  // ⭐ نسخة JavaScript بحتة (من غير أي types) - نفس المنطق بالظبط، عشان
+  // مشاريع JS ما تحتوي على أي صياغة TypeScript خالص، ومتضطرش لـ typescript dependency
+  const i18nJs = `import ar from './ar.json';
+import en from './en.json';
+import fr from './fr.json';
+
+const translations = { ar, en, fr };
+
+// يرجع الترجمة المطلوبة، ولو مش موجودة بيرجع النص العربي كافتراضي
+export function t(key, lang = 'ar') {
+  return translations[lang]?.[key] ?? translations.ar[key] ?? key;
+}
+`;
+
+  // App.tsx/jsx الافتراضي بيستخدم فعليًا ملف الثيم وملف اللغات - مش بس موجودين من غير استخدام
   const appComponent = `import { StatusBar } from 'expo-status-bar';
 import { StyleSheet, Text, View } from 'react-native';
 import { colors } from './src/theme/colors';
@@ -180,7 +201,7 @@ const styles = StyleSheet.create({
     '14': JSON.stringify(arJson, null, 2) + '\n',
     '15': JSON.stringify(enJson, null, 2) + '\n',
     '16': JSON.stringify(frJson, null, 2) + '\n',
-    '17': i18nTs,
+    '17': isTs ? i18nTs : i18nJs,
   };
 
   if (isTs) {

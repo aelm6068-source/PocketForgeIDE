@@ -1,5 +1,5 @@
 // src/utils/daytonaClient.ts
-// طبقة الاتصال بـ Daytona API - اختبار المفتاح + إنشاء Sandbox + رفع الملفات + تشغيل expo tunnel
+// طبقة الاتصال بـ Daytona API - اختبار المفتاح + إنشاء Sandbox + رفع الملفات + تشغيل expo tunnel + تنظيف السيرفرات
 
 import { ProjectFile, buildFilePath } from '../screens/editor/useEditorFile';
 import { loadFileContent } from './projectStorage';
@@ -404,4 +404,41 @@ export async function runExpoTunnel(
 
   onProgress({ stage: 'ready', message: 'التطبيق شغال - الرابط جاهز', tunnelUrl: expUrl });
   return expUrl;
+}
+
+// ---------------------------------------------------------------------------
+// ⭐ الجديد: تنظيف الـ Sandboxes - مسح سيرفر مشروع معين + تنضيف أي سيرفرات تايهة
+// ---------------------------------------------------------------------------
+
+export type DaytonaSandboxInfo = {
+  id: string;
+};
+
+/**
+ * يجيب قائمة بكل الـ Sandboxes الموجودة فعليًا على حساب المستخدم في Daytona
+ */
+export async function listSandboxes(apiKey: string): Promise<DaytonaSandboxInfo[]> {
+  const response = await daytonaFetch(apiKey, `${DAYTONA_API_BASE}/sandbox`, {
+    method: 'GET',
+  });
+  const data = await response.json();
+  // الرد بييجي بصيغة { items: [...], nextCursor: ... } مش array مباشرة
+  const items = Array.isArray(data) ? data : (Array.isArray(data.items) ? data.items : []);
+  return items.map((item: any) => ({ id: item.id }));
+}
+
+/**
+ * يحذف Sandbox واحد بالـ id بتاعه. بنتجاهل خطأ 404 (يبقى أصلًا اتمسح أو مات
+ * لوحده) عشان عملية التنظيف الجماعية متقفش على sandbox واحد مش موجود.
+ */
+export async function deleteSandbox(apiKey: string, sandboxId: string): Promise<void> {
+  try {
+    await daytonaFetch(apiKey, `${DAYTONA_API_BASE}/sandbox/${sandboxId}`, {
+      method: 'DELETE',
+    });
+  } catch (err: any) {
+    if (!err?.message?.includes('404') && !err?.message?.includes('409')) {
+      throw err;
+    }
+  }
 }

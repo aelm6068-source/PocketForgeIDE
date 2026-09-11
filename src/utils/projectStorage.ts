@@ -1,9 +1,9 @@
 // src/utils/projectStorage.ts
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Directory, File, Paths } from 'expo-file-system';
 import type { ProjectFile } from '../screens/editor/useEditorFile';
 
 const filesKey = (projectId: string) => `pocketforge:files:${projectId}`;
-const contentKey = (projectId: string, fileId: string) => `pocketforge:content:${projectId}:${fileId}`;
 const sandboxKey = (projectId: string) => `pocketforge_sandbox_${projectId}`;
 const PROJECTS_LIST_KEY = 'pocketforge_projects_list';
 
@@ -46,10 +46,26 @@ export async function loadProjectFiles(projectId: string): Promise<ProjectFile[]
   }
 }
 
-// حفظ/قراءة محتوى ملف واحد بعينه
+// ⭐ محتوى الملفات (نص أو base64) بقى متخزن كملف فعلي على القرص، مش في AsyncStorage.
+// السبب: AsyncStorage على أندرويد بيرفض بصمت أي قيمة أكبر من ~2 ميجابايت
+// ("Row too big to fit into CursorWindow")، وده كان بيحصل لأي صورة حقيقية
+// متوسطة الحجم من غير ما يظهر أي خطأ للمستخدم.
+function contentDirectory(projectId: string): Directory {
+  return new Directory(Paths.document, 'pocketforge-content', projectId);
+}
+
+function contentFile(projectId: string, fileId: string): File {
+  return new File(contentDirectory(projectId), fileId);
+}
+
 export async function saveFileContent(projectId: string, fileId: string, content: string): Promise<void> {
   try {
-    await AsyncStorage.setItem(contentKey(projectId, fileId), content);
+    const dir = contentDirectory(projectId);
+    if (!dir.exists) {
+      dir.create({ intermediates: true, idempotent: true });
+    }
+    const file = contentFile(projectId, fileId);
+    file.write(content);
   } catch (e) {
     console.warn('[projectStorage] فشل حفظ محتوى الملف', e);
   }
@@ -57,7 +73,9 @@ export async function saveFileContent(projectId: string, fileId: string, content
 
 export async function loadFileContent(projectId: string, fileId: string): Promise<string | null> {
   try {
-    return await AsyncStorage.getItem(contentKey(projectId, fileId));
+    const file = contentFile(projectId, fileId);
+    if (!file.exists) return null;
+    return await file.text();
   } catch (e) {
     console.warn('[projectStorage] فشل تحميل محتوى الملف', e);
     return null;
@@ -67,7 +85,10 @@ export async function loadFileContent(projectId: string, fileId: string): Promis
 // حذف محتوى ملف (مفيد لو المستخدم مسح الملف من شاشة الملفات)
 export async function deleteFileContent(projectId: string, fileId: string): Promise<void> {
   try {
-    await AsyncStorage.removeItem(contentKey(projectId, fileId));
+    const file = contentFile(projectId, fileId);
+    if (file.exists) {
+      await file.delete();
+    }
   } catch (e) {
     console.warn('[projectStorage] فشل حذف محتوى الملف', e);
   }
