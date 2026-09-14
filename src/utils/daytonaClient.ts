@@ -442,3 +442,77 @@ export async function deleteSandbox(apiKey: string, sandboxId: string): Promise<
     }
   }
 }
+// ---------------------------------------------------------------------------
+// ⭐ الجديد: تشغيل نسخة ويب من المشروع (لمعاينة المتصفح الحقيقية)
+// ---------------------------------------------------------------------------
+
+/**
+ * يشغّل نسخة ويب من نفس المشروع (expo start --web) على بورت منفصل (8082) عن
+ * بورت الموبايل (8081) عشان يقدروا يشتغلوا مع بعض من غير تعارض لو المستخدم
+ * فاتح "فتح في Expo Go" في نفس الوقت. بترجع رابط ويب عادي (https) جاهز للعرض
+ * جوه WebView مباشرة.
+ */
+export async function runExpoWeb(
+  apiKey: string,
+  sandboxId: string,
+  onProgress: (progress: RunProgress) => void
+): Promise<string> {
+  const sessionId = await createSession(apiKey, sandboxId);
+  const WEB_PORT = 8082;
+
+  onProgress({ stage: 'installing', message: 'جاري تجهيز رابط معاينة الويب...' });
+  const preview = await getSignedPreviewUrl(apiKey, sandboxId, WEB_PORT, 3600);
+  const previewUrl = preview.url;
+
+  onProgress({ stage: 'installing', message: 'جاري تشغيل نسخة الويب من المشروع...' });
+  // بنقفل بس أي نسخة ويب قديمة شغالة على نفس البورت ده - من غير ما نلمس
+  // نسخة الموبايل (بورت 8081) لو كانت شغالة في نفس الوقت
+  const runCommandId = await execInSession(
+    apiKey,
+    sandboxId,
+    sessionId,
+    `pkill -f "expo start --web" 2>/dev/null; sleep 1; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && CI=1 npx expo start --web --port ${WEB_PORT}`,
+    true
+  );
+
+  const maxAttempts = 60;
+  let lastLogsSnapshot = '';
+  let webReady = false;
+
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    await new Promise((resolve) => setTimeout(resolve, 3000));
+
+    let logs = '';
+    try {
+      logs = await getCommandLogs(apiKey, sandboxId, sessionId, runCommandId);
+      if (logs) lastLogsSnapshot = logs;
+    } catch (err: any) {
+      continue;
+    }
+
+    if (/npm error|npm ERR!/i.test(logs)) {
+      onProgress({ stage: 'failed', message: 'فشل تثبيت الحزم' });
+      throw new DaytonaError(`فشل تثبيت الحزم:\n${logs.slice(-500)}`);
+    }
+
+    onProgress({
+      stage: 'starting',
+      message: `جاري تجهيز نسخة الويب... (${attempt + 1}/${maxAttempts})`,
+    });
+
+    if (METRO_READY_REGEX.test(logs) || /Web Bundled|Bundled \d/i.test(logs)) {
+      webReady = true;
+      break;
+    }
+  }
+
+  if (!webReady) {
+    onProgress({ stage: 'failed', message: 'محصلتش نسخة الويب تتجهز خلال الوقت المتوقع' });
+    throw new DaytonaError(
+      `انتهى الوقت المسموح من غير ما نسخة الويب تجهز.\n${lastLogsSnapshot.slice(-500)}`
+    );
+  }
+
+  onProgress({ stage: 'ready', message: 'معاينة الويب جاهزة', tunnelUrl: previewUrl });
+  return previewUrl;
+}
