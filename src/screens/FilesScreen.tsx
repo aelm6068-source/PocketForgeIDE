@@ -15,6 +15,7 @@ import InputModal from '../components/InputModal';
 import ActionModal from '../components/ActionModal';
 import FileActionMenu, { FileActionTarget } from '../components/FileActionMenu';
 import AppDrawer from '../components/AppDrawer';
+import PreviewPanel from '../components/preview/PreviewPanel';
 import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
 import * as SecureStore from 'expo-secure-store';
 import { createSandbox, uploadProjectFiles, runExpoTunnel, RunProgressStage, deleteSandbox, listSandboxes } from '../utils/daytonaClient';
@@ -421,6 +422,9 @@ export default function FilesScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </View>
 
+      {activeItem === 'preview' ? (
+        <PreviewPanel projectId={projectId} files={files} />
+      ) : (
       <View style={styles.fileTree}>
         <View style={styles.ftActions}>
           <TouchableOpacity style={styles.ftBtn} onPress={() => setFileModalVisible(true)}>
@@ -456,6 +460,7 @@ export default function FilesScreen({ route, navigation }: any) {
           )}
         />
       </View>
+      )}
 
       <AppDrawer
         visible={drawerOpen}
