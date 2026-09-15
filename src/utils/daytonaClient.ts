@@ -471,7 +471,7 @@ export async function runExpoWeb(
     apiKey,
     sandboxId,
     sessionId,
-    `pkill -f "expo start --web" 2>/dev/null; sleep 1; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && CI=1 npx expo start --web --port ${WEB_PORT}`,
+    `pkill -f "expo start --web" 2>/dev/null; sleep 1; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && npm_config_legacy_peer_deps=true npx expo install react-dom react-native-web && CI=1 npx expo start --web --port ${WEB_PORT}`,
     true
   );
 
