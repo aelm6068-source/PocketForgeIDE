@@ -3,7 +3,8 @@
 // نقط ملونة شكلية + مكان بيوري رابط الموقع الحالي. المحتوى اللي جواه (WebView)
 // هو اللي بيكون شغال فعليًا في وضع المتصفح
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 
 type BrowserFrameProps = {
   children: React.ReactNode;
@@ -20,11 +21,18 @@ export default function BrowserFrame({ children, url }: BrowserFrameProps) {
             <View style={[styles.dot, { backgroundColor: '#FEBC2E' }]} />
             <View style={[styles.dot, { backgroundColor: '#28C840' }]} />
           </View>
-          <View style={styles.addressBar}>
+          <TouchableOpacity
+            style={styles.addressBar}
+            onPress={async () => {
+              if (!url) return;
+              await Clipboard.setStringAsync(url);
+              Alert.alert('تم النسخ', url);
+            }}
+          >
             <Text style={styles.addressText} numberOfLines={1}>
               {url || 'localhost'}
             </Text>
-          </View>
+          </TouchableOpacity>
         </View>
         <View style={styles.screen}>{children}</View>
       </View>
