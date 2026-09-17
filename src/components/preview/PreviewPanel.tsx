@@ -63,6 +63,7 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
   const [status, setStatus] = useState<RunProgressStage | 'idle'>('idle');
   const [message, setMessage] = useState('');
   const [webUrl, setWebUrl] = useState<string | null>(null);
+  const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const hasStarted = useRef(false);
 
   const startPreview = useCallback(async () => {
@@ -93,6 +94,13 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
       });
 
       setWebUrl(url);
+
+      // بنجيب محتوى الصفحة إحنا بنفسنا (مش الـ WebView) عشان نتجاوز مشكلة
+      // تحذير Daytona اللي بيظهر بس للمتصفحات الحقيقية - طلب عادي زي ده بيوصل
+      // للمحتوى الحقيقي على طول من غير أي تحذير
+      const htmlResponse = await fetch(url);
+      const html = await htmlResponse.text();
+      setHtmlContent(html);
     } catch (err: any) {
       setStatus('failed');
       setMessage(err?.message ?? 'حصلت مشكلة غير متوقعة أثناء تجهيز المعاينة');
@@ -106,15 +114,15 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
   }, [startPreview]);
 
   const renderContent = () => {
-    if (status === 'ready' && webUrl) {
+    if (status === 'ready' && webUrl && htmlContent) {
       return (
         <WebView
-          source={{ uri: webUrl }}
+          source={{ html: htmlContent, baseUrl: webUrl }}
           style={styles.webview}
-         injectedJavaScript={DAYTONA_WARNING_BYPASS_JS + (mode === 'mobile' ? MOBILE_MODE_INJECTED_JS : '')} 
+          injectedJavaScript={mode === 'mobile' ? MOBILE_MODE_INJECTED_JS : undefined}
         />
       );
-    }
+     }
 
     if (status === 'failed') {
       return (
