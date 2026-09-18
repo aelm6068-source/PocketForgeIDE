@@ -3,7 +3,7 @@
 // المشروع + عرضها جوه إطار الموبايل (شكل بس، من غير تفاعل حقيقي) أو إطار
 // المتصفح (شغال فعليًا وبالكامل) حسب اختيار المستخدم من PreviewToggle
 import React, { useState, useCallback, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity } from 'react-native';
+import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as SecureStore from 'expo-secure-store';
 import { colors, fonts, spacing, radius } from '../../theme/colors';
@@ -100,7 +100,25 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
       // للمحتوى الحقيقي على طول من غير أي تحذير
       const htmlResponse = await fetch(url);
       const html = await htmlResponse.text();
-      setHtmlContent(html);
+
+      // بنلاقي أي <script src="..."> جوه الصفحة، ونجيب محتواه إحنا بنفسنا،
+      // ونحطه جوه الصفحة كـ <script> مضمّن - عشان لو سبناه للـ WebView يطلبه
+      // هو هياخد نفس تحذير Daytona تاني (لأنه بيبان كمتصفح حقيقي برضو)
+      let finalHtml = html;
+      const scriptMatches = [...html.matchAll(/<script\s+src="([^"]+)"[^>]*>/g)];
+      for (const match of scriptMatches) {
+        const absoluteSrc = match[1].startsWith('http')
+          ? match[1]
+          : new URL(match[1], url).toString();
+        try {
+          const bundleResponse = await fetch(absoluteSrc);
+          const bundleCode = await bundleResponse.text();
+          finalHtml = finalHtml.replace(match[0], `<script>${bundleCode}</script>`);
+        } catch (bundleErr) {
+          // لو فشل جيب ملف معين، نسيبه زي ما هو - أحسن من ما نوقف كل حاجة
+        }
+      }
+      setHtmlContent(finalHtml);
     } catch (err: any) {
       setStatus('failed');
       setMessage(err?.message ?? 'حصلت مشكلة غير متوقعة أثناء تجهيز المعاينة');
@@ -120,6 +138,8 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
           source={{ html: htmlContent, baseUrl: webUrl }}
           style={styles.webview}
           injectedJavaScript={mode === 'mobile' ? MOBILE_MODE_INJECTED_JS : undefined}
+          onError={(e) => Alert.alert('خطأ WebView', JSON.stringify(e.nativeEvent))}
+          onHttpError={(e) => Alert.alert('خطأ HTTP', JSON.stringify(e.nativeEvent))}
         />
       );
      }
