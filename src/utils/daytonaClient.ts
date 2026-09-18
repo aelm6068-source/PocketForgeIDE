@@ -474,7 +474,7 @@ export async function runExpoWeb(
     apiKey,
     sandboxId,
     sessionId,
-    `pkill -f "serve dist" 2>/dev/null; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && npx expo install react-dom react-native-web && npx expo export --platform web && npx serve dist --listen ${WEB_PORT}`,
+    `pkill -f "serve dist" 2>/dev/null; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && npm_config_legacy_peer_deps=true npx expo install react-dom react-native-web && npx expo export --platform web && npx serve dist --listen ${WEB_PORT}`,
     true
   );
 
@@ -495,7 +495,9 @@ export async function runExpoWeb(
 
     if (/npm error|npm ERR!/i.test(logs)) {
       onProgress({ stage: 'failed', message: 'فشل تثبيت الحزم' });
-      throw new DaytonaError(`فشل تثبيت الحزم:\n${logs.slice(-500)}`);
+      const errorIndex = logs.search(/npm error|npm ERR!/i);
+      const relevantLogs = logs.slice(Math.max(0, errorIndex - 100), errorIndex + 900);
+      throw new DaytonaError(`فشل تثبيت الحزم:\n${relevantLogs}`);
     }
 
     onProgress({

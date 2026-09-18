@@ -42,6 +42,27 @@ const DAYTONA_WARNING_BYPASS_JS = `
   })();
   true;
 `;
+// كود بيمسك أي خطأ جافاسكريبت بيحصل جوه الصفحة (حتى لو حصل وهي لسه بتحمّل)
+// ويبعتهولنا كرسالة، عشان نشوف السبب الحقيقي بدل ما نفضل نخمّن
+const JS_ERROR_CAPTURE_JS = `
+  window.onerror = function(message, source, lineno, colno, error) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({
+      type: 'jsError',
+      message: String(message),
+      lineno: lineno,
+      colno: colno,
+      stack: error && error.stack ? String(error.stack) : null,
+    }));
+    return false;
+  };
+  window.addEventListener('unhandledrejection', function(e) {
+    window.ReactNativeWebView.postMessage(JSON.stringify({
+      type: 'unhandledRejection',
+      reason: e.reason ? String(e.reason) : 'unknown',
+    }));
+  });
+  true;
+`;
 const MOBILE_MODE_INJECTED_JS = `
   document.addEventListener('click', function(e) {
     var link = e.target.closest && e.target.closest('a');
@@ -137,10 +158,13 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
         <WebView
           source={{ html: htmlContent, baseUrl: webUrl }}
           style={styles.webview}
+          injectedJavaScriptBeforeContentLoaded={JS_ERROR_CAPTURE_JS}
           injectedJavaScript={mode === 'mobile' ? MOBILE_MODE_INJECTED_JS : undefined}
           onError={(e) => Alert.alert('خطأ WebView', JSON.stringify(e.nativeEvent))}
           onHttpError={(e) => Alert.alert('خطأ HTTP', JSON.stringify(e.nativeEvent))}
+          onMessage={(e) => Alert.alert('خطأ جوه الصفحة', e.nativeEvent.data)}
         />
+        
       );
      }
 
