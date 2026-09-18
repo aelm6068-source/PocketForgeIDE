@@ -134,7 +134,7 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
         try {
           const bundleResponse = await fetch(absoluteSrc);
           const bundleCode = await bundleResponse.text();
-          finalHtml = finalHtml.replace(match[0], `<script>${bundleCode}</script>`);
+          finalHtml = finalHtml.replace(match[0], () => `<script>${bundleCode}</script>`);
         } catch (bundleErr) {
           // لو فشل جيب ملف معين، نسيبه زي ما هو - أحسن من ما نوقف كل حاجة
         }

@@ -474,7 +474,7 @@ export async function runExpoWeb(
     apiKey,
     sandboxId,
     sessionId,
-    `pkill -f "serve dist" 2>/dev/null; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && npm_config_legacy_peer_deps=true npx expo install react-dom react-native-web && npx expo export --platform web --no-bytecode && npx serve dist --listen ${WEB_PORT}`,
+    `pkill -f "serve dist" 2>/dev/null; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && REACT_VERSION=$(node -e "console.log(require('./node_modules/react/package.json').version)") && npm install react-dom@$REACT_VERSION react-native-web --legacy-peer-deps && npx expo export --platform web --no-bytecode && npx serve dist --listen ${WEB_PORT}`,
     true
   );
 

@@ -2,8 +2,9 @@
 // إطار بصري بيلف المحتوى في شكل نافذة متصفح (زي كروم) - بشريط عنوان فوق فيه
 // نقط ملونة شكلية + مكان بيوري رابط الموقع الحالي. المحتوى اللي جواه (WebView)
 // هو اللي بيكون شغال فعليًا في وضع المتصفح
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 
 type BrowserFrameProps = {
@@ -12,6 +13,9 @@ type BrowserFrameProps = {
 };
 
 export default function BrowserFrame({ children, url }: BrowserFrameProps) {
+  // ⭐ الجديد: تبديل عرض المحتوى بين وضع كمبيوتر (عرض كامل) وموبايل (عرض ضيق زي الهاتف)
+  const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
+
   return (
     <View style={styles.outer}>
       <View style={styles.window}>
@@ -33,8 +37,22 @@ export default function BrowserFrame({ children, url }: BrowserFrameProps) {
               {url || 'localhost'}
             </Text>
           </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.viewportBtn}
+            onPress={() => setViewport((v) => (v === 'desktop' ? 'mobile' : 'desktop'))}
+          >
+            <Ionicons
+              name={viewport === 'desktop' ? 'desktop-outline' : 'phone-portrait-outline'}
+              size={16}
+              color="#8B87A0"
+            />
+          </TouchableOpacity>
         </View>
-        <View style={styles.screen}>{children}</View>
+        <View style={styles.screen}>
+          <View style={[styles.contentWrap, viewport === 'mobile' && styles.contentWrapMobile]}>
+            {children}
+          </View>
+        </View>
       </View>
     </View>
   );
@@ -86,5 +104,24 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#000',
+    alignItems: 'center',
+  },
+  contentWrap: {
+    flex: 1,
+    width: '100%',
+  },
+  contentWrapMobile: {
+    flex: undefined,
+    width: 390,
+    maxWidth: '100%',
+    height: '100%',
+  },
+  viewportBtn: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#0C0A13',
   },
 });
