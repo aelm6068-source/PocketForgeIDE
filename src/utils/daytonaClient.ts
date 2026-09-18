@@ -464,18 +464,21 @@ export async function runExpoWeb(
   const preview = await getSignedPreviewUrl(apiKey, sandboxId, WEB_PORT, 3600);
   const previewUrl = preview.url;
 
-  onProgress({ stage: 'installing', message: 'جاري تشغيل نسخة الويب من المشروع...' });
-  // بنقفل بس أي نسخة ويب قديمة شغالة على نفس البورت ده - من غير ما نلمس
-  // نسخة الموبايل (بورت 8081) لو كانت شغالة في نفس الوقت
+  onProgress({ stage: 'installing', message: 'جاري بناء نسخة ثابتة من الموقع...' });
+  // بنعمل export ثابت (static) بدل تشغيل سيرفر تطوير حي - في وضع التطوير Metro
+  // بيحمّل أجزاء من الكود بشكل كسول (lazy) مباشرة من السيرفر وقت التشغيل نفسه،
+  // وده بيتعارض مع تحذير Daytona (الأجزاء دي بترجع صفحة التحذير بدل الكود
+  // الحقيقي، والخطأ بيحصل جوه كود الصفحة نفسه فمش بيظهر كخطأ WebView). النسخة
+  // الثابتة بتجمع كل حاجة في ملفات عادية من غير أي اعتماد على سيرفر حي بعد كده
   const runCommandId = await execInSession(
     apiKey,
     sandboxId,
     sessionId,
-    `pkill -f "expo start --web" 2>/dev/null; sleep 1; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && npm_config_legacy_peer_deps=true npx expo install react-dom react-native-web && CI=1 npx expo start --web --port ${WEB_PORT}`,
+    `pkill -f "serve dist" 2>/dev/null; cd ${SANDBOX_ROOT} && npm install --legacy-peer-deps && npx expo install react-dom react-native-web && npx expo export --platform web && npx serve dist --listen ${WEB_PORT}`,
     true
   );
 
-  const maxAttempts = 60;
+  const maxAttempts = 80;
   let lastLogsSnapshot = '';
   let webReady = false;
 
@@ -497,10 +500,11 @@ export async function runExpoWeb(
 
     onProgress({
       stage: 'starting',
-      message: `جاري تجهيز نسخة الويب... (${attempt + 1}/${maxAttempts})`,
+      message: `جاري بناء نسخة الويب... (${attempt + 1}/${maxAttempts})`,
     });
 
-    if (METRO_READY_REGEX.test(logs) || /Web Bundled|Bundled \d/i.test(logs)) {
+    // "serve" بيطبع رسالة زي "Accepting connections at" لما يجهز فعليًا
+    if (/Accepting connections|Local:\s*http/i.test(logs)) {
       webReady = true;
       break;
     }
