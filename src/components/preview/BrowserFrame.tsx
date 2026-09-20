@@ -1,8 +1,8 @@
 // src/components/preview/BrowserFrame.tsx
 // إطار بصري بيلف المحتوى في شكل نافذة متصفح (زي كروم) - بشريط عنوان فوق فيه
-// نقط ملونة شكلية + مكان بيوري رابط الموقع الحالي. المحتوى اللي جواه (WebView)
-// هو اللي بيكون شغال فعليًا في وضع المتصفح
-import React, { useState } from 'react';
+// نقط ملونة شكلية + مكان بيوري رابط الموقع الحالي + زرار تبديل كمبيوتر/موبايل.
+// المحتوى اللي جواه (WebView) هو اللي بيكون شغال فعليًا في وضع المتصفح
+import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
@@ -10,12 +10,11 @@ import * as Clipboard from 'expo-clipboard';
 type BrowserFrameProps = {
   children: React.ReactNode;
   url?: string;
+  viewport: 'desktop' | 'mobile';
+  onToggleViewport: () => void;
 };
 
-export default function BrowserFrame({ children, url }: BrowserFrameProps) {
-  // ⭐ الجديد: تبديل عرض المحتوى بين وضع كمبيوتر (عرض كامل) وموبايل (عرض ضيق زي الهاتف)
-  const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
-
+export default function BrowserFrame({ children, url, viewport, onToggleViewport }: BrowserFrameProps) {
   return (
     <View style={styles.outer}>
       <View style={styles.window}>
@@ -37,10 +36,7 @@ export default function BrowserFrame({ children, url }: BrowserFrameProps) {
               {url || 'localhost'}
             </Text>
           </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.viewportBtn}
-            onPress={() => setViewport((v) => (v === 'desktop' ? 'mobile' : 'desktop'))}
-          >
+          <TouchableOpacity style={styles.viewportBtn} onPress={onToggleViewport}>
             <Ionicons
               name={viewport === 'desktop' ? 'desktop-outline' : 'phone-portrait-outline'}
               size={16}
@@ -48,11 +44,7 @@ export default function BrowserFrame({ children, url }: BrowserFrameProps) {
             />
           </TouchableOpacity>
         </View>
-        <View style={styles.screen}>
-          <View style={[styles.contentWrap, viewport === 'mobile' && styles.contentWrapMobile]}>
-            {children}
-          </View>
-        </View>
+        <View style={styles.screen}>{children}</View>
       </View>
     </View>
   );
@@ -104,17 +96,6 @@ const styles = StyleSheet.create({
   screen: {
     flex: 1,
     backgroundColor: '#000',
-    alignItems: 'center',
-  },
-  contentWrap: {
-    flex: 1,
-    width: '100%',
-  },
-  contentWrapMobile: {
-    flex: undefined,
-    width: 390,
-    maxWidth: '100%',
-    height: '100%',
   },
   viewportBtn: {
     width: 26,

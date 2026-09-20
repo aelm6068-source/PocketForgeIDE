@@ -1,8 +1,8 @@
 // src/components/preview/PreviewPanel.tsx
 // اللوحة الرئيسية لميزة المعاينة - بتجمع رفع الملفات + تشغيل نسخة الويب من
 // المشروع + عرضها جوه إطار الموبايل (شكل بس، من غير تفاعل حقيقي) أو إطار
-// المتصفح (شغال فعليًا وبالكامل) حسب اختيار المستخدم من PreviewToggle
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+// المتصفح (شغال فعليًا وبالكامل، بتبديل كمبيوتر/موبايل) حسب اختيار المستخدم
+import React, { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, TouchableOpacity, Alert } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as SecureStore from 'expo-secure-store';
@@ -14,34 +14,6 @@ import MobileFrame from './MobileFrame';
 import BrowserFrame from './BrowserFrame';
 import PreviewToggle, { PreviewMode } from './PreviewToggle';
 
-// كود بيتحقن جوه صفحة الويب في وضع الموبايل بس - بيمنع أي تفاعل حقيقي (زراير،
-// فورمات) بس بيسيب الروابط الحقيقية (<a>) تشتغل عادي لو المشروع فيه تنقل
-// حقيقي بينها (زي Expo Router) - أي حاجة تانية بتتوقف
-// كود بيدوس تلقائيًا على تحذير الأمان بتاع Daytona ("I Understand, Continue")
-// اللي بيظهر أول مرة لأي متصفح حقيقي بيفتح رابط المعاينة - عشان المستخدم مايشوفوش خالص
-const DAYTONA_WARNING_BYPASS_JS = `
-  (function() {
-    function tryBypass() {
-      var els = document.querySelectorAll('a, button');
-      for (var i = 0; i < els.length; i++) {
-        var t = (els[i].innerText || '').toLowerCase();
-        if (t.indexOf('continue') !== -1 || t.indexOf('i understand') !== -1) {
-          els[i].click();
-          return true;
-        }
-      }
-      return false;
-    }
-    if (!tryBypass()) {
-      var n = 0;
-      var iv = setInterval(function() {
-        n++;
-        if (tryBypass() || n > 10) clearInterval(iv);
-      }, 300);
-    }
-  })();
-  true;
-`;
 // كود بيمسك أي خطأ جافاسكريبت بيحصل جوه الصفحة (حتى لو حصل وهي لسه بتحمّل)
 // ويبعتهولنا كرسالة، عشان نشوف السبب الحقيقي بدل ما نفضل نخمّن
 const JS_ERROR_CAPTURE_JS = `
@@ -63,6 +35,9 @@ const JS_ERROR_CAPTURE_JS = `
   });
   true;
 `;
+// كود بيتحقن جوه صفحة الويب في وضع الموبايل بس - بيمنع أي تفاعل حقيقي (زراير،
+// فورمات) بس بيسيب الروابط الحقيقية (<a>) تشتغل عادي لو المشروع فيه تنقل
+// حقيقي بينها (زي Expo Router) - أي حاجة تانية بتتوقف
 const MOBILE_MODE_INJECTED_JS = `
   document.addEventListener('click', function(e) {
     var link = e.target.closest && e.target.closest('a');
@@ -84,6 +59,8 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
   const [status, setStatus] = useState<RunProgressStage | 'idle'>('idle');
   const [message, setMessage] = useState('');
   const [webUrl, setWebUrl] = useState<string | null>(null);
+  // وضع عرض الموقع في وضع المتصفح - كمبيوتر (مصغّر ليتظبط) أو موبايل (طبيعي)
+  const [viewport, setViewport] = useState<'desktop' | 'mobile'>('desktop');
   const [htmlContent, setHtmlContent] = useState<string | null>(null);
   const hasStarted = useRef(false);
 
@@ -152,11 +129,26 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
     startPreview();
   }, [startPreview]);
 
+  // بنجهّز نسخة من الصفحة تتظبط حسب الوضع - في وضع الكمبيوتر بنستبدل إعداد
+  // "viewport" الأصلي بواحد بيخلي الصفحة تتصرف وكأنها على شاشة عريضة 1200px،
+  // والمتصفح نفسه بيصغّرها تلقائيًا عشان تتظبط - زي "طلب نسخة سطح المكتب" بالظبط
+  const displayHtml = useMemo(() => {
+    if (!htmlContent) return null;
+    if (mode === 'browser' && viewport === 'desktop') {
+      return htmlContent.replace(
+        /<meta\s+name="viewport"[^>]*>/i,
+        '<meta name="viewport" content="width=1200">'
+      );
+    }
+    return htmlContent;
+  }, [htmlContent, mode, viewport]);
+
   const renderContent = () => {
-    if (status === 'ready' && webUrl && htmlContent) {
+    if (status === 'ready' && webUrl && displayHtml) {
       return (
         <WebView
-          source={{ html: htmlContent, baseUrl: webUrl }}
+          key={`${mode}-${viewport}`}
+          source={{ html: displayHtml, baseUrl: webUrl }}
           style={styles.webview}
           injectedJavaScriptBeforeContentLoaded={JS_ERROR_CAPTURE_JS}
           injectedJavaScript={mode === 'mobile' ? MOBILE_MODE_INJECTED_JS : undefined}
@@ -164,9 +156,8 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
           onHttpError={(e) => Alert.alert('خطأ HTTP', JSON.stringify(e.nativeEvent))}
           onMessage={(e) => Alert.alert('خطأ جوه الصفحة', e.nativeEvent.data)}
         />
-        
       );
-     }
+    }
 
     if (status === 'failed') {
       return (
@@ -203,7 +194,13 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
         {mode === 'mobile' ? (
           <MobileFrame>{renderContent()}</MobileFrame>
         ) : (
-          <BrowserFrame url={webUrl ?? undefined}>{renderContent()}</BrowserFrame>
+          <BrowserFrame
+            url={webUrl ?? undefined}
+            viewport={viewport}
+            onToggleViewport={() => setViewport((v) => (v === 'desktop' ? 'mobile' : 'desktop'))}
+          >
+            {renderContent()}
+          </BrowserFrame>
         )}
       </View>
     </View>
