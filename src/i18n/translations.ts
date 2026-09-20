@@ -1,23 +1,18 @@
 // src/i18n/translations.ts
-// قاموس النصوص - عربي وإنجليزي بس حاليًا. هنضيف عليه المفاتيح تدريجيًا شاشة
-// بشاشة لما نستبدل كل نص عربي مكتوب مباشرة جوه الكود بمفتاح ترجمة بدله
+// بيجمع كل ملفات الترجمة المنفصلة (كل شاشة بملفها الخاص) في قاموس واحد نهائي
+// تستخدمه LanguageContext.tsx. الملف ده مش المفروض نضيف عليه نصوص مباشرة -
+// أي نص جديد يتضاف في ملف الشاشة بتاعته، وهيتجمع هنا تلقائيًا بمجرد ما نستورده
 export type Language = 'ar' | 'en';
+
+import { common } from './common';
+// هنضيف باقي الاستيرادات هنا (filesScreen, settingsScreen, ...) أول ما نملأهم
 
 export const translations = {
   ar: {
-    // عام - مستخدم في أكتر من شاشة
-    common_cancel: 'إلغاء',
-    common_save: 'حفظ',
-    common_delete: 'حذف',
-    common_error: 'خطأ',
-    common_done: 'تم',
+    ...common.ar,
   },
   en: {
-    common_cancel: 'Cancel',
-    common_save: 'Save',
-    common_delete: 'Delete',
-    common_error: 'Error',
-    common_done: 'Done',
+    ...common.en,
   },
 } as const;
 
