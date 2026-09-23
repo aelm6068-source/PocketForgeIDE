@@ -33,6 +33,7 @@ import SettingsScreen from './src/screens/SettingsScreen';
 import FilesScreen from './src/screens/FilesScreen';
 import EditorScreen from './src/screens/editor/EditorScreen';
 import { colors } from './src/theme/colors';
+import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -40,6 +41,8 @@ const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
 
 function MainTabs() {
+  const { t } = useLanguage();
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -60,8 +63,8 @@ function MainTabs() {
         },
       })}
     >
-      <Tab.Screen name="Projects" component={ProjectsScreen} options={{ title: 'مشاريع' }} />
-      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: 'إعدادات' }} />
+      <Tab.Screen name="Projects" component={ProjectsScreen} options={{ title: t('common_tab_projects') }} />
+      <Tab.Screen name="Settings" component={SettingsScreen} options={{ title: t('common_tab_settings') }} />
     </Tab.Navigator>
   );
 }
@@ -93,16 +96,18 @@ export default function App() {
   }
 
   return (
-    <SafeAreaProvider onLayout={onLayoutRootView} style={styles.root}>
-      <StatusBar hidden />
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="MainTabs" component={MainTabs} />
-          <Stack.Screen name="Files" component={FilesScreen} />
-          <Stack.Screen name="Editor" component={EditorScreen} />
-        </Stack.Navigator>
-      </NavigationContainer>
-    </SafeAreaProvider>
+    <LanguageProvider>
+      <SafeAreaProvider onLayout={onLayoutRootView} style={styles.root}>
+        <StatusBar hidden />
+        <NavigationContainer>
+          <Stack.Navigator screenOptions={{ headerShown: false }}>
+            <Stack.Screen name="MainTabs" component={MainTabs} />
+            <Stack.Screen name="Files" component={FilesScreen} />
+            <Stack.Screen name="Editor" component={EditorScreen} />
+          </Stack.Navigator>
+        </NavigationContainer>
+      </SafeAreaProvider>
+    </LanguageProvider>
   );
 }
 

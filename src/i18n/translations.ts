@@ -5,15 +5,35 @@
 export type Language = 'ar' | 'en';
 
 import { common } from './common';
-// هنضيف باقي الاستيرادات هنا (filesScreen, settingsScreen, ...) أول ما نملأهم
+import { projectsScreen } from './projectsScreen';
+import { filesScreen } from './filesScreen';
+import { settingsScreen } from './settingsScreen';
+import { appDrawer } from './appDrawer';
+import { runSandbox } from './runSandbox';
+import { editor } from './editor';
+import { preview } from './preview';
 
 export const translations = {
-  ar: {
+ ar: {
     ...common.ar,
+    ...projectsScreen.ar,
+    ...filesScreen.ar,
+    ...settingsScreen.ar,
+    ...appDrawer.ar,
+    ...runSandbox.ar,
+    ...editor.ar,
+    ...preview.ar,
   },
   en: {
     ...common.en,
-  },
+    ...projectsScreen.en,
+    ...filesScreen.en,
+    ...settingsScreen.en,
+    ...appDrawer.en,
+    ...runSandbox.en,
+    ...editor.en,
+    ...preview.en,
+  }, 
 } as const;
 
 export type TranslationKey = keyof typeof translations['ar'];

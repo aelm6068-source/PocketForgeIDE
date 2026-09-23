@@ -12,6 +12,8 @@ export const common = {
     common_done: 'تم',
     common_retry: 'إعادة المحاولة',
     common_choose_action: 'اختر إجراء',
+    common_tab_projects: 'مشاريع',
+    common_tab_settings: 'إعدادات',
   },
   en: {
     common_cancel: 'Cancel',
@@ -22,5 +24,7 @@ export const common = {
     common_done: 'Done',
     common_retry: 'Retry',
     common_choose_action: 'Choose an action',
+    common_tab_projects: 'Projects',
+    common_tab_settings: 'Settings',
   },
 };
