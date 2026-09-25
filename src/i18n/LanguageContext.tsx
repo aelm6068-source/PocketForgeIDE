@@ -3,7 +3,6 @@
 // بيحفظ اختيار المستخدم في AsyncStorage، وأول مرة يفتح فيها التطبيق بيحدد اللغة
 // الافتراضية حسب لغة الهاتف (عربي لو الهاتف عربي، إنجليزي لأي لغة تانية).
 import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
-import { I18nManager, Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import { translations, Language, TranslationKey } from './translations';
@@ -39,12 +38,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
         const saved = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
         const initial: Language = saved === 'ar' || saved === 'en' ? saved : getDeviceDefaultLanguage();
         setLanguageState(initial);
-
-        const shouldBeRTL = initial === 'ar';
-        if (I18nManager.isRTL !== shouldBeRTL) {
-          I18nManager.allowRTL(shouldBeRTL);
-          I18nManager.forceRTL(shouldBeRTL);
-        }
       } catch {
         setLanguageState('ar');
       } finally {
@@ -63,18 +56,6 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
   const setLanguage = useCallback(async (lang: Language) => {
     await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
     setLanguageState(lang);
-
-    const shouldBeRTL = lang === 'ar';
-    if (I18nManager.isRTL !== shouldBeRTL) {
-      I18nManager.allowRTL(shouldBeRTL);
-      I18nManager.forceRTL(shouldBeRTL);
-      Alert.alert(
-        lang === 'ar' ? 'إعادة تشغيل مطلوبة' : 'Restart Required',
-        lang === 'ar'
-          ? 'لازم تقفل التطبيق وتفتحه تاني عشان اتجاه الكتابة يتغيّر بالكامل.'
-          : 'Please close and reopen the app for the layout direction to fully update.'
-      );
-    }
   }, []);
 
   return (
