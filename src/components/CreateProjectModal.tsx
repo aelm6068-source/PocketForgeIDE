@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { colors, fonts, spacing, radius } from '../theme/colors';
 import { ProjectLanguage } from '../theme/types';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface Props {
   visible: boolean;
@@ -21,11 +22,12 @@ interface Props {
 }
 
 export default function CreateProjectModal({ visible, onCancel, onCreate }: Props) {
+  const { t } = useLanguage();
   const [name, setName] = useState('');
   const [language, setLanguage] = useState<ProjectLanguage>('typescript');
 
   const handleCreate = () => {
-    const finalName = name.trim() || 'مشروع جديد';
+    const finalName = name.trim() || t('create_project_default_name');
     onCreate(finalName, language);
     setName('');
     setLanguage('typescript');
@@ -45,19 +47,19 @@ export default function CreateProjectModal({ visible, onCancel, onCreate }: Prop
       >
         <Pressable style={styles.overlayPress} onPress={handleCancel} />
         <View style={styles.sheet}>
-          <Text style={styles.title}>مشروع جديد</Text>
+          <Text style={styles.title}>{t('create_project_default_name')}</Text>
 
-          <Text style={styles.label}>اسم المشروع</Text>
+          <Text style={styles.label}>{t('create_project_name_label')}</Text>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
-            placeholder="اكتب اسم المشروع"
+            placeholder={t('create_project_name_placeholder')}
             placeholderTextColor={colors.textFaint}
             textAlign="right"
           />
 
-          <Text style={styles.label}>لغة المشروع</Text>
+          <Text style={styles.label}>{t('create_project_language_label')}</Text>
           <View style={styles.langRow}>
             <TouchableOpacity
               style={[styles.langChip, language === 'typescript' && styles.langChipActiveTs]}
@@ -88,11 +90,11 @@ export default function CreateProjectModal({ visible, onCancel, onCreate }: Prop
           </View>
 
           <TouchableOpacity style={styles.createBtn} onPress={handleCreate} activeOpacity={0.85}>
-            <Text style={styles.createBtnText}>إنشاء المشروع</Text>
+            <Text style={styles.createBtnText}>{t('create_project_submit')}</Text>
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-            <Text style={styles.cancelText}>إلغاء</Text>
+            <Text style={styles.cancelText}>{t('common_cancel')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

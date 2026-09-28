@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { colors, fonts, spacing, radius } from '../theme/colors';
 import { Project } from '../theme/types';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface Props {
   project: Project;
@@ -11,6 +12,7 @@ interface Props {
 }
 
 export default function ProjectCard({ project, onPress, onLongPress }: Props) {
+  const { t } = useLanguage();
   const isTs = project.language === 'typescript';
 
   return (
@@ -38,7 +40,7 @@ export default function ProjectCard({ project, onPress, onLongPress }: Props) {
         </View>
       </View>
       <Text style={styles.name}>{project.name}</Text>
-      <Text style={styles.meta}>آخر تعديل: {project.lastModified}</Text>
+      <Text style={styles.meta}>{t('projects_last_modified')} {project.lastModified}</Text>
     </TouchableOpacity>
   );
 }

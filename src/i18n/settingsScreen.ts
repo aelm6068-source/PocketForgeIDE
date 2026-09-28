@@ -5,6 +5,11 @@ export const settingsScreen = {
     settings_title: 'الإعدادات',
     settings_subtitle: 'إدارة مفاتيح تشغيل المشاريع على السيرفر — اضغط على الكارت عشان تخليه المزوّد النشط',
 
+    // كارت اللغة
+    settings_language_title: 'اللغة',
+    settings_language_hint: 'التلقائي بيتبع لغة الهاتف: عربي لو الهاتف عربي، وإنجليزي لأي لغة تانية',
+    settings_language_auto: 'تلقائي',
+
     // تنبيهات عامة
     settings_alert_title: 'تنبيه',
     settings_enter_key_first: 'من فضلك أدخل المفتاح قبل الحفظ',
@@ -38,6 +43,10 @@ export const settingsScreen = {
   en: {
     settings_title: 'Settings',
     settings_subtitle: 'Manage the keys used to run projects on the server — tap a card to make it the active provider',
+
+    settings_language_title: 'Language',
+    settings_language_hint: 'Auto follows your phone language: Arabic if your phone is Arabic, English for any other language',
+    settings_language_auto: 'Auto',
 
     settings_alert_title: 'Notice',
     settings_enter_key_first: 'Please enter the key before saving',

@@ -8,6 +8,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
 import { colors, fonts, spacing, radius } from '../theme/colors';
 import { RunProgressStage } from '../utils/daytonaClient';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface Props {
   visible: boolean;
@@ -17,15 +18,17 @@ interface Props {
   onClose: () => void;
 }
 
-const STAGE_LABELS: Record<string, string> = {
-  idle: 'جاري التجهيز...',
-  installing: 'تثبيت الحزم',
-  starting: 'تشغيل Expo',
-  ready: 'جاهز',
-  failed: 'فشل',
-};
-
 export default function RunSandboxModal({ visible, stage, message, tunnelUrl, onClose }: Props) {
+  const { t } = useLanguage();
+
+  const stageLabels: Record<string, string> = {
+    idle: t('run_stage_idle'),
+    installing: t('run_stage_installing'),
+    starting: t('run_stage_starting'),
+    ready: t('run_stage_ready'),
+    failed: t('run_stage_failed'),
+  };
+
   const isRunning = stage === 'idle' || stage === 'installing' || stage === 'starting';
   const isReady = stage === 'ready' && !!tunnelUrl;
   const isFailed = stage === 'failed';
@@ -33,13 +36,13 @@ export default function RunSandboxModal({ visible, stage, message, tunnelUrl, on
   const handleCopy = async () => {
     if (!tunnelUrl) return;
     await Clipboard.setStringAsync(tunnelUrl);
-    Alert.alert('تم', 'اتنسخ الرابط');
+    Alert.alert(t('common_done'), t('run_link_copied'));
   };
 
   const handleOpen = () => {
     if (!tunnelUrl) return;
     Linking.openURL(tunnelUrl).catch(() => {
-      Alert.alert('خطأ', 'مش قادر أفتح الرابط - انسخه وافتحه يدويًا في Expo Go');
+      Alert.alert(t('common_error'), t('run_open_link_error'));
     });
   };
 
@@ -50,7 +53,7 @@ export default function RunSandboxModal({ visible, stage, message, tunnelUrl, on
           {isRunning && (
             <>
               <ActivityIndicator size="large" color={colors.accent} style={{ marginBottom: spacing.md }} />
-              <Text style={styles.stageLabel}>{STAGE_LABELS[stage] ?? STAGE_LABELS.idle}</Text>
+              <Text style={styles.stageLabel}>{stageLabels[stage] ?? stageLabels.idle}</Text>
               <Text style={styles.message}>{message}</Text>
             </>
           )}
@@ -60,17 +63,17 @@ export default function RunSandboxModal({ visible, stage, message, tunnelUrl, on
               <View style={styles.successIcon}>
                 <Ionicons name="checkmark-circle" size={40} color={colors.success} />
               </View>
-              <Text style={styles.stageLabel}>التطبيق شغال</Text>
+              <Text style={styles.stageLabel}>{t('run_app_running')}</Text>
               <Text style={styles.urlText} numberOfLines={2}>{tunnelUrl}</Text>
 
               <View style={styles.actionsRow}>
                 <TouchableOpacity style={styles.actionBtn} onPress={handleCopy}>
                   <Ionicons name="copy-outline" size={16} color={colors.text} />
-                  <Text style={styles.actionBtnText}>نسخ</Text>
+                  <Text style={styles.actionBtnText}>{t('run_copy')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={[styles.actionBtn, styles.actionBtnPrimary]} onPress={handleOpen}>
                   <Ionicons name="open-outline" size={16} color="white" />
-                  <Text style={[styles.actionBtnText, { color: 'white' }]}>فتح في Expo Go</Text>
+                  <Text style={[styles.actionBtnText, { color: 'white' }]}>{t('run_open_in_expo_go')}</Text>
                 </TouchableOpacity>
               </View>
             </>
@@ -79,7 +82,7 @@ export default function RunSandboxModal({ visible, stage, message, tunnelUrl, on
           {isFailed && (
             <>
               <Ionicons name="close-circle" size={40} color={colors.error} style={{ marginBottom: spacing.sm }} />
-              <Text style={styles.stageLabel}>حصلت مشكلة</Text>
+              <Text style={styles.stageLabel}>{t('run_problem_occurred')}</Text>
               <ScrollView style={styles.errorScroll}>
                 <Text style={styles.message}>{message}</Text>
               </ScrollView>
@@ -87,7 +90,7 @@ export default function RunSandboxModal({ visible, stage, message, tunnelUrl, on
           )}
 
           <TouchableOpacity style={styles.closeBtn} onPress={onClose}>
-            <Text style={styles.closeBtnText}>{isRunning ? 'إلغاء' : 'إغلاق'}</Text>
+            <Text style={styles.closeBtnText}>{isRunning ? t('common_cancel') : t('run_close')}</Text>
           </TouchableOpacity>
         </View>
       </View>

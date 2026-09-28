@@ -13,6 +13,7 @@ import {
 import * as SecureStore from 'expo-secure-store';
 import { colors, fonts, spacing, radius } from '../theme/colors';
 import { testDaytonaConnection } from '../utils/daytonaClient';
+import { useLanguage } from '../i18n/LanguageContext';
 
 type Provider = 'e2b' | 'daytona';
 
@@ -39,6 +40,7 @@ const PROVIDER_INFO: Record<
 };
 
 export default function SettingsScreen() {
+  const { t } = useLanguage();
   const [e2bKey, setE2bKey] = useState('');
   const [daytonaKey, setDaytonaKey] = useState('');
   const [showE2b, setShowE2b] = useState(false);
@@ -86,7 +88,7 @@ export default function SettingsScreen() {
       provider === 'e2b' ? STORAGE_KEYS.e2bKey : STORAGE_KEYS.daytonaKey;
 
     if (!value.trim()) {
-      Alert.alert('تنبيه', 'من فضلك أدخل المفتاح قبل الحفظ');
+      Alert.alert(t('settings_alert_title'), t('settings_enter_key_first'));
       return;
     }
 
@@ -95,9 +97,9 @@ export default function SettingsScreen() {
       setSavedFlag(provider);
       setTimeout(() => setSavedFlag(null), 1800);
     } catch (err) {
-      Alert.alert('خطأ', 'حصل خطأ أثناء حفظ المفتاح، حاول تاني');
+      Alert.alert(t('common_error'), t('settings_save_key_error'));
     }
-  }, [e2bKey, daytonaKey]);
+  }, [e2bKey, daytonaKey, t]);
 
   const handleSelectActive = useCallback(async (provider: Provider) => {
     setActiveProvider(provider);
@@ -110,13 +112,13 @@ export default function SettingsScreen() {
 
   const openSignupPage = useCallback((provider: Provider) => {
     Linking.openURL(PROVIDER_INFO[provider].signupUrl).catch(() => {
-      Alert.alert('خطأ', 'مش قادر أفتح الرابط دلوقتي');
+      Alert.alert(t('common_error'), t('settings_open_link_error'));
     });
-  }, []);
+  }, [t]);
 
   const handleSaveExpoToken = useCallback(async () => {
     if (!expoToken.trim()) {
-      Alert.alert('تنبيه', 'من فضلك أدخل التوكن قبل الحفظ');
+      Alert.alert(t('settings_alert_title'), t('settings_enter_token_first'));
       return;
     }
     try {
@@ -124,9 +126,9 @@ export default function SettingsScreen() {
       setExpoTokenSaved(true);
       setTimeout(() => setExpoTokenSaved(false), 1800);
     } catch (err) {
-      Alert.alert('خطأ', 'حصل خطأ أثناء حفظ التوكن، حاول تاني');
+      Alert.alert(t('common_error'), t('settings_save_token_error'));
     }
-  }, [expoToken]);
+  }, [expoToken, t]);
 
   const handleTestConnection = useCallback(async (provider: Provider) => {
     const storageKey =
@@ -141,7 +143,7 @@ export default function SettingsScreen() {
         setTestResult({
           provider,
           success: false,
-          message: 'محتاج تحفظ المفتاح الأول قبل الاختبار',
+          message: t('settings_test_need_key_first'),
         });
         return;
       }
@@ -153,19 +155,19 @@ export default function SettingsScreen() {
         setTestResult({
           provider,
           success: false,
-          message: 'اختبار الاتصال بـ E2B لسه مش متاح',
+          message: t('settings_test_e2b_unavailable'),
         });
       }
     } catch (err) {
       setTestResult({
         provider,
         success: false,
-        message: 'حصل خطأ غير متوقع أثناء الاختبار',
+        message: t('settings_test_unexpected_error'),
       });
     } finally {
       setTestingProvider(null);
     }
-  }, []);
+  }, [t]);
 
   if (!loaded) {
     return <View style={styles.container} />;
@@ -177,11 +179,8 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>الإعدادات</Text>
-      <Text style={styles.subtitle}>
-        إدارة مفاتيح تشغيل المشاريع على السيرفر — اضغط على الكارت عشان تخليه
-        المزوّد النشط
-      </Text>
+      <Text style={styles.title}>{t('settings_title')}</Text>
+      <Text style={styles.subtitle}>{t('settings_subtitle')}</Text>
 
       {/* كارت E2B */}
       <ProviderCard
@@ -217,35 +216,34 @@ export default function SettingsScreen() {
       {/* كارت توكن Expo (اختياري) - بيخلي الـ tunnel موثّق بدل مجهول، وأكتر استقرارًا */}
       <View style={styles.card}>
         <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>Expo Token (اختياري)</Text>
+          <Text style={styles.cardTitle}>{t('settings_expo_token_title')}</Text>
         </View>
-        <Text style={styles.expoTokenHint}>
-          بيحسّن استقرار الـ tunnel وقت التشغيل - مش إجباري
-        </Text>
+        <Text style={styles.expoTokenHint}>{t('settings_expo_token_hint')}</Text>
         <View style={styles.inputRow}>
           <TextInput
             style={styles.input}
             value={expoToken}
             onChangeText={setExpoToken}
-            placeholder="توكن Personal Access من expo.dev"
+            placeholder={t('settings_expo_token_placeholder')}
             placeholderTextColor={colors.textFaint}
             secureTextEntry={!showExpoToken}
             autoCapitalize="none"
             autoCorrect={false}
           />
           <TouchableOpacity onPress={() => setShowExpoToken((v) => !v)} style={styles.eyeButton}>
-            <Text style={styles.eyeButtonText}>{showExpoToken ? 'إخفاء' : 'إظهار'}</Text>
+            <Text style={styles.eyeButtonText}>
+              {showExpoToken ? t('settings_hide') : t('settings_show')}
+            </Text>
           </TouchableOpacity>
         </View>
         <TouchableOpacity onPress={handleSaveExpoToken} style={[styles.saveButton, { alignSelf: 'flex-end', marginTop: spacing.sm }]}>
-          <Text style={styles.saveButtonText}>{expoTokenSaved ? 'تم الحفظ ✓' : 'حفظ'}</Text>
+          <Text style={styles.saveButtonText}>
+            {expoTokenSaved ? t('settings_saved_checkmark') : t('settings_save_button')}
+          </Text>
         </TouchableOpacity>
       </View>
 
-      <Text style={styles.footerNote}>
-        المفاتيح بتتخزن مشفّرة على جهازك فقط، ومبتتبعتش لأي سيرفر تاني غير مزوّد
-        التشغيل نفسه.
-      </Text>
+      <Text style={styles.footerNote}>{t('settings_footer_note')}</Text>
     </ScrollView>
   );
 }
@@ -281,6 +279,7 @@ function ProviderCard({
   saved: boolean;
   isActive: boolean;
 }) {
+  const { t } = useLanguage();
   const info = PROVIDER_INFO[provider];
 
   return (
@@ -293,10 +292,10 @@ function ProviderCard({
         <Text style={styles.cardTitle}>{info.label}</Text>
         {isActive ? (
           <View style={styles.activeBadge}>
-            <Text style={styles.activeBadgeText}>نشط</Text>
+            <Text style={styles.activeBadgeText}>{t('settings_active_badge')}</Text>
           </View>
         ) : (
-          <Text style={styles.tapToActivateText}>اضغط للتفعيل</Text>
+          <Text style={styles.tapToActivateText}>{t('settings_tap_to_activate')}</Text>
         )}
       </View>
 
@@ -312,18 +311,20 @@ function ProviderCard({
           autoCorrect={false}
         />
         <TouchableOpacity onPress={onToggleShow} style={styles.eyeButton}>
-          <Text style={styles.eyeButtonText}>{show ? 'إخفاء' : 'إظهار'}</Text>
+          <Text style={styles.eyeButtonText}>
+            {show ? t('settings_hide') : t('settings_show')}
+          </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.cardActions}>
         <TouchableOpacity onPress={onOpenSignup} style={styles.linkButton}>
-          <Text style={styles.linkButtonText}>احصل على مفتاح ↗</Text>
+          <Text style={styles.linkButtonText}>{t('settings_get_key_link')}</Text>
         </TouchableOpacity>
 
         <TouchableOpacity onPress={onSave} style={styles.saveButton}>
           <Text style={styles.saveButtonText}>
-            {saved ? 'تم الحفظ ✓' : 'حفظ'}
+            {saved ? t('settings_saved_checkmark') : t('settings_save_button')}
           </Text>
         </TouchableOpacity>
       </View>
@@ -336,7 +337,7 @@ function ProviderCard({
             disabled={testing}
           >
             <Text style={styles.testButtonText}>
-              {testing ? 'جاري الاختبار...' : 'اختبار الاتصال'}
+              {testing ? t('settings_testing') : t('settings_test_connection')}
             </Text>
           </TouchableOpacity>
 

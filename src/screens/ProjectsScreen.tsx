@@ -8,8 +8,10 @@ import { Project, ProjectLanguage } from '../theme/types';
 import ProjectCard from '../components/ProjectCard';
 import ActionModal from '../components/ActionModal';
 import CreateProjectModal from '../components/CreateProjectModal';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function ProjectsScreen({ navigation }: any) {
+  const { t } = useLanguage();
   const { projects, addProject, deleteProject } = useProjects();
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
@@ -37,13 +39,13 @@ export default function ProjectsScreen({ navigation }: any) {
   return (
     <View style={styles.container}>
       <View style={styles.topbar}>
-        <Text style={styles.title}>مشاريعي</Text>
+        <Text style={styles.title}>{t('projects_title')}</Text>
       </View>
 
       {projects.length === 0 ? (
         <View style={styles.emptyState}>
-          <Text style={styles.emptyText}>مفيش مشاريع لسه</Text>
-          <Text style={styles.emptySubtext}>دوس على (+) عشان تبدأ أول مشروع</Text>
+          <Text style={styles.emptyText}>{t('projects_empty_title')}</Text>
+          <Text style={styles.emptySubtext}>{t('projects_empty_subtitle')}</Text>
         </View>
       ) : (
         <FlatList
@@ -77,9 +79,9 @@ export default function ProjectsScreen({ navigation }: any) {
       <ActionModal
         visible={!!deleteTarget}
         title={deleteTarget?.name ?? ''}
-        subtitle="اختر إجراء"
+        subtitle={t('projects_delete_subtitle')}
         onCancel={() => setDeleteTarget(null)}
-        options={[{ label: 'حذف', onPress: handleDelete, destructive: true }]}
+        options={[{ label: t('common_delete'), onPress: handleDelete, destructive: true }]}
       />
     </View>
   );

@@ -1,11 +1,13 @@
 // src/i18n/LanguageContext.tsx
-// المحرك الفعلي لنظام الترجمة: بيوفر اللغة الحالية، دالة t()، ودالة تغيير اللغة.
-// بيحفظ اختيار المستخدم في AsyncStorage، وأول مرة يفتح فيها التطبيق بيحدد اللغة
-// الافتراضية حسب لغة الهاتف (عربي لو الهاتف عربي، إنجليزي لأي لغة تانية).
-import React, { createContext, useContext, useEffect, useState, useCallback, ReactNode } from 'react';
+// المحرك الفعلي لنظام الترجمة: بيوفر اللغة الحالية، دالة t()، واختيار المستخدم.
+// الاختيار ممكن يكون: 'auto' (حسب لغة الهاتف: عربي لو الهاتف عربي، إنجليزي لأي لغة تانية)
+// أو 'ar' أو 'en' يدويًا. الاختيار بيتحفظ في AsyncStorage.
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import { translations, Language, TranslationKey } from './translations';
+
+export type LanguagePreference = 'auto' | 'ar' | 'en';
 
 const LANGUAGE_STORAGE_KEY = 'pocketforge:language';
 
@@ -20,31 +22,38 @@ function getDeviceDefaultLanguage(): Language {
 }
 
 interface LanguageContextValue {
-  language: Language;
+  language: Language; // اللغة الفعلية المستخدمة دلوقتي
+  preference: LanguagePreference; // اختيار المستخدم (auto / ar / en)
   isLoading: boolean;
   t: (key: TranslationKey) => string;
-  setLanguage: (lang: Language) => Promise<void>;
+  setPreference: (pref: LanguagePreference) => Promise<void>;
 }
 
 const LanguageContext = createContext<LanguageContextValue | undefined>(undefined);
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguageState] = useState<Language>('ar');
+  const [preference, setPreferenceState] = useState<LanguagePreference>('auto');
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(LANGUAGE_STORAGE_KEY);
-        const initial: Language = saved === 'ar' || saved === 'en' ? saved : getDeviceDefaultLanguage();
-        setLanguageState(initial);
+        if (saved === 'auto' || saved === 'ar' || saved === 'en') {
+          setPreferenceState(saved);
+        }
       } catch {
-        setLanguageState('ar');
+        // لو فشلت القراءة نفضل على 'auto'
       } finally {
         setIsLoading(false);
       }
     })();
   }, []);
+
+  const language: Language = useMemo(
+    () => (preference === 'auto' ? getDeviceDefaultLanguage() : preference),
+    [preference]
+  );
 
   const t = useCallback(
     (key: TranslationKey): string => {
@@ -53,13 +62,17 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     [language]
   );
 
-  const setLanguage = useCallback(async (lang: Language) => {
-    await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
-    setLanguageState(lang);
+  const setPreference = useCallback(async (pref: LanguagePreference) => {
+    setPreferenceState(pref);
+    try {
+      await AsyncStorage.setItem(LANGUAGE_STORAGE_KEY, pref);
+    } catch {
+      // التغيير شغال في الجلسة الحالية حتى لو فشل الحفظ
+    }
   }, []);
 
   return (
-    <LanguageContext.Provider value={{ language, isLoading, t, setLanguage }}>
+    <LanguageContext.Provider value={{ language, preference, isLoading, t, setPreference }}>
       {children}
     </LanguageContext.Provider>
   );

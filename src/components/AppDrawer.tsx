@@ -5,16 +5,10 @@ import React, { useRef, useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Animated, Dimensions, Easing } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 const DRAWER_WIDTH = SCREEN_WIDTH * 0.62;
-
-export const drawerItems = [
-  { key: 'files', label: 'ملفات', icon: 'folder-outline' },
-  { key: 'shell', label: 'Shell', icon: 'terminal-outline' },
-  { key: 'preview', label: 'معاينة', icon: 'play-outline' },
-  { key: 'ai', label: 'AI', icon: 'sparkles-outline' },
-];
 
 // ⭐ لون تحذيري لعنصر التنظيف - منفصل عن ألوان الثيم العادية عشان يبان إنه إجراء حساس
 const DANGER_COLOR = '#F87171';
@@ -39,10 +33,20 @@ export default function AppDrawer({
   onRunPress,
   onCleanupPress,
 }: AppDrawerProps) {
+  const { t } = useLanguage();
+
   // بنفضل الـ Drawer نفسه mounted لحد ما أنيميشن القفل يخلص، عشان يفضل
   // يظهر وهو بيتحرك للخارج بدل ما يختفي فجأة
   const [mounted, setMounted] = useState(visible);
   const slideAnim = useRef(new Animated.Value(DRAWER_WIDTH)).current;
+
+  // "Shell" و"AI" أسماء إنجليزية ثابتة مش محتاجة ترجمة
+  const drawerItems = [
+    { key: 'files', label: t('drawer_files'), icon: 'folder-outline' },
+    { key: 'shell', label: 'Shell', icon: 'terminal-outline' },
+    { key: 'preview', label: t('drawer_preview'), icon: 'play-outline' },
+    { key: 'ai', label: 'AI', icon: 'sparkles-outline' },
+  ];
 
   useEffect(() => {
     if (visible) {
@@ -113,7 +117,7 @@ export default function AppDrawer({
           activeOpacity={0.75}
         >
           <Ionicons name="rocket-outline" size={22} color={colors.accent} />
-          <Text style={[styles.drawerLabel, { color: colors.accent }]}>فتح في Expo Go</Text>
+          <Text style={[styles.drawerLabel, { color: colors.accent }]}>{t('drawer_open_in_expo_go')}</Text>
         </TouchableOpacity>
 
         {/* ⭐ الجديد: زرار مسح وتنظيف سيرفر المشروع */}
@@ -126,7 +130,7 @@ export default function AppDrawer({
           activeOpacity={0.75}
         >
           <Ionicons name="trash-outline" size={22} color={DANGER_COLOR} />
-          <Text style={[styles.drawerLabel, { color: DANGER_COLOR }]}>مسح وتنظيف السيرفر</Text>
+          <Text style={[styles.drawerLabel, { color: DANGER_COLOR }]}>{t('drawer_cleanup_server')}</Text>
         </TouchableOpacity>
       </Animated.View>
     </>
