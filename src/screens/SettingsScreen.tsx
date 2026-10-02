@@ -180,10 +180,10 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
+      <Text style={styles.title}>{t('settings_title')}</Text>
       <Text style={styles.subtitle}>{t('settings_subtitle')}</Text>
 
       <LanguageCard />
-      <Text style={styles.subtitle}>{t('settings_subtitle')}</Text>
 
       {/* كارت E2B */}
       <ProviderCard
