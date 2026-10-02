@@ -1,4 +1,4 @@
-// src/screens/SettingsScreen.tsx
+// src/screens/SettingsScreen.ts
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -14,6 +14,7 @@ import * as SecureStore from 'expo-secure-store';
 import { colors, fonts, spacing, radius } from '../theme/colors';
 import { testDaytonaConnection } from '../utils/daytonaClient';
 import { useLanguage } from '../i18n/LanguageContext';
+import LanguageCard from '../components/LanguageCard';
 
 type Provider = 'e2b' | 'daytona';
 
@@ -179,7 +180,9 @@ export default function SettingsScreen() {
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
     >
-      <Text style={styles.title}>{t('settings_title')}</Text>
+      <Text style={styles.subtitle}>{t('settings_subtitle')}</Text>
+
+      <LanguageCard />
       <Text style={styles.subtitle}>{t('settings_subtitle')}</Text>
 
       {/* كارت E2B */}
