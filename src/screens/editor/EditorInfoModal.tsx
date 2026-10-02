@@ -4,6 +4,8 @@ import { View, Text, TouchableOpacity, StyleSheet, Modal, FlatList } from 'react
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius } from '../../theme/colors';
 import { FileIconBadge } from '../../theme/fileIcons';
+import { useLanguage } from '../../i18n/LanguageContext';
+import { TranslationKey } from '../../i18n/translations';
 
 export interface DiagnosticItem {
   id: string;
@@ -27,14 +29,14 @@ interface EditorInfoModalProps {
   onSelectDirtyFile: (fileId: string) => void;
 }
 
-function getModalConfig(kind: InfoModalKind) {
+function getModalConfig(kind: InfoModalKind, t: (key: TranslationKey) => string) {
   switch (kind) {
     case 'errors':
-      return { title: 'الأخطاء', icon: 'close-circle' as const, color: '#F25C5C' };
+      return { title: t('editor_modal_errors_title'), icon: 'close-circle' as const, color: '#F25C5C' };
     case 'warnings':
-      return { title: 'التحذيرات', icon: 'warning' as const, color: '#F2B84C' };
+      return { title: t('editor_modal_warnings_title'), icon: 'warning' as const, color: '#F2B84C' };
     case 'dirtyFiles':
-      return { title: 'ملفات فيها تعديل غير محفوظ', icon: 'ellipse' as const, color: colors.accent };
+      return { title: t('editor_modal_dirty_title'), icon: 'ellipse' as const, color: colors.accent };
     default:
       return { title: '', icon: 'information-circle' as const, color: colors.textMuted };
   }
@@ -48,9 +50,11 @@ export default function EditorInfoModal({
   onClose,
   onSelectDirtyFile,
 }: EditorInfoModalProps) {
+  const { t } = useLanguage();
+
   if (!kind) return null;
 
-  const config = getModalConfig(kind);
+  const config = getModalConfig(kind, t);
   const diagnostics = kind === 'errors' ? errors : kind === 'warnings' ? warnings : [];
 
   return (
@@ -69,7 +73,7 @@ export default function EditorInfoModal({
 
           {kind === 'dirtyFiles' ? (
             dirtyFiles.length === 0 ? (
-              <Text style={styles.emptyText}>مفيش ملفات فيها تعديل غير محفوظ</Text>
+              <Text style={styles.emptyText}>{t('editor_modal_dirty_empty')}</Text>
             ) : (
               <FlatList
                 data={dirtyFiles}
@@ -92,7 +96,7 @@ export default function EditorInfoModal({
             )
           ) : diagnostics.length === 0 ? (
             <Text style={styles.emptyText}>
-              {kind === 'errors' ? 'مفيش أخطاء 🎉' : 'مفيش تحذيرات 👍'}
+              {kind === 'errors' ? t('editor_modal_errors_empty') : t('editor_modal_warnings_empty')}
             </Text>
           ) : (
             <FlatList
@@ -100,7 +104,9 @@ export default function EditorInfoModal({
               keyExtractor={(item) => item.id}
               renderItem={({ item }) => (
                 <View style={styles.row}>
-                  <Text style={[styles.lineTag, { color: config.color }]}>سطر {item.line}</Text>
+                  <Text style={[styles.lineTag, { color: config.color }]}>
+                    {t('editor_modal_line_prefix')} {item.line}
+                  </Text>
                   <Text style={styles.rowText} numberOfLines={2}>{item.message}</Text>
                 </View>
               )}

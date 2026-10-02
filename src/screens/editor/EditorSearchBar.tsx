@@ -4,6 +4,7 @@ import { View, TextInput, Text, TouchableOpacity, StyleSheet } from 'react-nativ
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius } from '../../theme/colors';
 import type { SearchResult } from './useEditorState';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface EditorSearchBarProps {
   visible: boolean;
@@ -29,6 +30,7 @@ export default function EditorSearchBar({
   onGotoLine,
   onClose,
 }: EditorSearchBarProps) {
+  const { t } = useLanguage();
   const [query, setQuery] = useState('');
   const [caseSensitive, setCaseSensitive] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -81,7 +83,7 @@ export default function EditorSearchBar({
           value={query}
           onChangeText={handleChangeText}
           onSubmitEditing={handleSubmit}
-          placeholder="ابحث في الكود، أو اكتب رقم سطر..."
+          placeholder={t('editor_search_placeholder')}
           placeholderTextColor={colors.textFaint}
           autoFocus
           returnKeyType="search"
@@ -96,12 +98,14 @@ export default function EditorSearchBar({
       <View style={styles.actions}>
         {isLineMode ? (
           <TouchableOpacity style={styles.gotoBtn} onPress={handleSubmit} activeOpacity={0.75}>
-            <Text style={styles.gotoBtnText}>روح لسطر {query.trim()}</Text>
+            <Text style={styles.gotoBtnText}>{t('editor_search_goto_line_prefix')} {query.trim()}</Text>
           </TouchableOpacity>
         ) : (
           <>
             <Text style={styles.counter}>
-              {searchResult.total > 0 ? `${searchResult.index}/${searchResult.total}` : 'مفيش نتائج'}
+              {searchResult.total > 0
+                ? `${searchResult.index}/${searchResult.total}`
+                : t('editor_search_no_results')}
             </Text>
 
             <TouchableOpacity

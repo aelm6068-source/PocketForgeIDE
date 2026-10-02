@@ -3,6 +3,7 @@ import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, radius } from '../../theme/colors';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 export type KeyboardCommand =
   | 'backspace'
@@ -48,6 +49,7 @@ export default function CodingKeyboard({
   onInsertText,
   onCommand,
 }: CodingKeyboardProps) {
+  const { t } = useLanguage();
   const [layer, setLayer] = React.useState<Layer>('letters');
   const [isShifted, setIsShifted] = React.useState(false);
 
@@ -72,7 +74,7 @@ export default function CodingKeyboard({
             color={colors.accent}
           />
           <Text style={styles.headerBtnText}>
-            {mode === 'custom' ? 'كيبورد البرمجة' : 'كيبورد الموبايل'}
+            {mode === 'custom' ? t('editor_keyboard_coding') : t('editor_keyboard_mobile')}
           </Text>
         </TouchableOpacity>
 
@@ -167,7 +169,7 @@ export default function CodingKeyboard({
               onPress={() => onInsertText(' ')}
               activeOpacity={0.6}
             >
-              <Text style={styles.keyText}>مسافة</Text>
+              <Text style={styles.keyText}>{t('editor_keyboard_space')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity

@@ -5,6 +5,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius } from '../../theme/colors';
 import { FileIconBadge } from '../../theme/fileIcons';
 import type { OpenFile } from './useEditorFile';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 interface EditorToolbarProps {
   openFiles: OpenFile[];
@@ -33,6 +34,7 @@ export default function EditorToolbar({
   onToggleWrap,
   isWrapped,
 }: EditorToolbarProps) {
+  const { t } = useLanguage();
   const activeFile = openFiles.find((f) => f.id === activeFileId);
 
   return (
@@ -43,7 +45,7 @@ export default function EditorToolbar({
         </TouchableOpacity>
 
         <Text style={styles.title} numberOfLines={1}>
-          {activeFile?.name ?? 'المحرر'}
+          {activeFile?.name ?? t('editor_title_fallback')}
         </Text>
 
         <View style={styles.rightActions}>
