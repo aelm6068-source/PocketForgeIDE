@@ -2,6 +2,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { colors, fonts, spacing, radius } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export interface ModalOption {
   label: string;
@@ -18,6 +19,8 @@ interface Props {
 }
 
 export default function ActionModal({ visible, title, subtitle, options, onCancel }: Props) {
+  const { t } = useLanguage();
+
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <Pressable style={styles.overlay} onPress={onCancel}>
@@ -49,7 +52,7 @@ export default function ActionModal({ visible, title, subtitle, options, onCance
           </View>
 
           <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} activeOpacity={0.75}>
-            <Text style={styles.cancelText}>إلغاء</Text>
+            <Text style={styles.cancelText}>{t('common_cancel')}</Text>
           </TouchableOpacity>
         </Pressable>
       </Pressable>

@@ -5,6 +5,7 @@ import {
   Pressable, TextInput, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { colors, fonts, spacing, radius } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
 
 interface Props {
   visible: boolean;
@@ -27,6 +28,7 @@ export default function InputModal({
   initialValue,
   submitLabel,
 }: Props) {
+  const { t } = useLanguage();
   const [value, setValue] = useState('');
 
   // كل ما المودال يتفتح، نملأ الحقل بالقيمة الابتدائية (لو فيه) عشان تبقى جاهزة للتعديل مباشرة
@@ -67,10 +69,10 @@ export default function InputModal({
             selectTextOnFocus
           />
           <TouchableOpacity style={styles.createBtn} onPress={handleSubmit} activeOpacity={0.85}>
-            <Text style={styles.createBtnText}>{submitLabel ?? 'إنشاء'}</Text>
+            <Text style={styles.createBtnText}>{submitLabel ?? t('common_create')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
-            <Text style={styles.cancelText}>إلغاء</Text>
+            <Text style={styles.cancelText}>{t('common_cancel')}</Text>
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>

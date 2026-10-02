@@ -3,6 +3,8 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Modal, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius } from '../theme/colors';
+import { useLanguage } from '../i18n/LanguageContext';
+import { TranslationKey } from '../i18n/translations';
 
 export type FileActionTarget = {
   id: string;
@@ -26,23 +28,32 @@ interface FileActionMenuProps {
   onAction: (action: ActionKey, target: FileActionTarget) => void;
 }
 
-const FILE_ACTIONS: { key: ActionKey; label: string; icon: string; destructive?: boolean }[] = [
-  { key: 'rename', label: 'إعادة تسمية', icon: 'pencil-outline' },
-  { key: 'copyPath', label: 'نسخ المسار', icon: 'copy-outline' },
-  { key: 'duplicate', label: 'تكرار الملف', icon: 'duplicate-outline' },
-  { key: 'download', label: 'تحميل', icon: 'download-outline' },
-  { key: 'delete', label: 'حذف', icon: 'trash-outline', destructive: true },
+type ActionItem = {
+  key: ActionKey;
+  labelKey: TranslationKey;
+  icon: string;
+  destructive?: boolean;
+};
+
+const FILE_ACTIONS: ActionItem[] = [
+  { key: 'rename', labelKey: 'files_action_rename', icon: 'pencil-outline' },
+  { key: 'copyPath', labelKey: 'files_action_copy_path', icon: 'copy-outline' },
+  { key: 'duplicate', labelKey: 'files_action_duplicate', icon: 'duplicate-outline' },
+  { key: 'download', labelKey: 'files_action_download', icon: 'download-outline' },
+  { key: 'delete', labelKey: 'common_delete', icon: 'trash-outline', destructive: true },
 ];
 
-const FOLDER_ACTIONS: { key: ActionKey; label: string; icon: string; destructive?: boolean }[] = [
-  { key: 'rename', label: 'إعادة تسمية', icon: 'pencil-outline' },
-  { key: 'addFile', label: 'إضافة ملف', icon: 'document-outline' },
-  { key: 'addFolder', label: 'إضافة مجلد', icon: 'folder-outline' },
-  { key: 'copyPath', label: 'نسخ المسار', icon: 'copy-outline' },
-  { key: 'delete', label: 'حذف', icon: 'trash-outline', destructive: true },
+const FOLDER_ACTIONS: ActionItem[] = [
+  { key: 'rename', labelKey: 'files_action_rename', icon: 'pencil-outline' },
+  { key: 'addFile', labelKey: 'files_action_add_file', icon: 'document-outline' },
+  { key: 'addFolder', labelKey: 'files_action_add_folder', icon: 'folder-outline' },
+  { key: 'copyPath', labelKey: 'files_action_copy_path', icon: 'copy-outline' },
+  { key: 'delete', labelKey: 'common_delete', icon: 'trash-outline', destructive: true },
 ];
 
 export default function FileActionMenu({ visible, target, onClose, onAction }: FileActionMenuProps) {
+  const { t } = useLanguage();
+
   if (!target) return null;
 
   const actions = target.type === 'file' ? FILE_ACTIONS : FOLDER_ACTIONS;
@@ -80,7 +91,7 @@ export default function FileActionMenu({ visible, target, onClose, onAction }: F
                   action.destructive && { color: colors.error },
                 ]}
               >
-                {action.label}
+                {t(action.labelKey)}
               </Text>
             </TouchableOpacity>
           ))}

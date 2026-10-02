@@ -28,8 +28,10 @@ import {
 } from './editor/useEditorFile';
 import { isImageFile } from '../theme/defaultAssets';
 import { buildProjectFiles, buildProjectFileContents } from '../utils/projectTemplate';
+import { useLanguage } from '../i18n/LanguageContext';
 
 export default function FilesScreen({ route, navigation }: any) {
+  const { t } = useLanguage();
   const { projectId, projectName, language } = route.params;
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activeItem, setActiveItem] = useState('files');
@@ -155,12 +157,15 @@ export default function FilesScreen({ route, navigation }: any) {
           await saveFileContent(projectId, newFile.id, text);
         }
       } catch (readErr: any) {
-        Alert.alert('تحذير', 'اتضاف الملف للقايمة لكن حصلت مشكلة في قراءة محتواه: ' + String(readErr?.message || readErr));
+        Alert.alert(
+          t('files_import_warning_title'),
+          t('files_import_content_error') + String(readErr?.message || readErr)
+        );
       }
 
       persistFiles([...files, newFile]);
     } catch (e) {
-      Alert.alert('خطأ', 'حصلت مشكلة أثناء استيراد الملف');
+      Alert.alert(t('common_error'), t('files_import_error'));
     }
   };
 
@@ -229,12 +234,12 @@ export default function FilesScreen({ route, navigation }: any) {
 
       const isAvailable = await Sharing.isAvailableAsync();
       if (!isAvailable) {
-        Alert.alert('غير متاح', 'المشاركة مش متاحة على الجهاز ده');
+        Alert.alert(t('files_share_unavailable_title'), t('files_share_unavailable_message'));
         return;
       }
       await Sharing.shareAsync(file.uri);
     } catch (e) {
-      Alert.alert('خطأ', 'حصلت مشكلة أثناء تجهيز الملف للتحميل');
+      Alert.alert(t('common_error'), t('files_download_error'));
     }
   };
 
@@ -249,7 +254,7 @@ export default function FilesScreen({ route, navigation }: any) {
       case 'copyPath': {
         const path = buildFilePath(target.id, files);
         await Clipboard.setStringAsync(path);
-        Alert.alert('تم', 'اتنسخ المسار: ' + path);
+        Alert.alert(t('common_done'), t('files_path_copied') + path);
         break;
       }
 
@@ -315,7 +320,7 @@ export default function FilesScreen({ route, navigation }: any) {
   const handleRun = async () => {
     const apiKey = await SecureStore.getItemAsync('pocketforge_apikey_daytona');
     if (!apiKey) {
-      Alert.alert('محتاج مفتاح', 'روح لشاشة الإعدادات واحفظ مفتاح Daytona الأول');
+      Alert.alert(t('files_need_key_title'), t('files_need_key_message'));
       return;
     }
 
@@ -327,16 +332,16 @@ export default function FilesScreen({ route, navigation }: any) {
       let sandboxId = await loadSandboxId(projectId);
 
       if (!sandboxId) {
-        setRunMessage('جاري إنشاء بيئة تشغيل جديدة...');
+        setRunMessage(t('files_run_creating_sandbox'));
         sandboxId = await createSandbox(apiKey);
         await saveSandboxId(projectId, sandboxId);
       } else {
-        setRunMessage('جاري إعادة الاتصال ببيئة التشغيل الموجودة...');
+        setRunMessage(t('files_run_reconnecting'));
       }
 
-      setRunMessage('جاري رفع ملفات المشروع...');
+      setRunMessage(t('files_run_uploading'));
       await uploadProjectFiles(apiKey, sandboxId, projectId, files, (progress) => {
-        setRunMessage(`جاري رفع الملفات... (${progress.done}/${progress.total})`);
+        setRunMessage(`${t('files_run_uploading_progress')} (${progress.done}/${progress.total})`);
       });
 
       const expoToken = await SecureStore.getItemAsync('pocketforge_apikey_expo');
@@ -352,16 +357,17 @@ export default function FilesScreen({ route, navigation }: any) {
         await clearSandboxId(projectId);
       }
       setRunStage('failed');
-      setRunMessage(err?.message ?? 'حصلت مشكلة غير متوقعة أثناء التشغيل');
+      setRunMessage(err?.message ?? t('files_run_unexpected_error'));
     }
   };
+
   const handleCleanupServer = () => {
     Alert.alert(
-      'تنظيف السيرفر',
-      'هيتم مسح سيرفر المشروع ده (هيشتغل من جديد المرة الجاية)، وأي سيرفرات تايهة مش تابعة لأي مشروع عندك. متأكد؟',
+      t('files_cleanup_title'),
+      t('files_cleanup_confirm_message'),
       [
-        { text: 'إلغاء', style: 'cancel' },
-        { text: 'مسح', style: 'destructive', onPress: runCleanupServer },
+        { text: t('common_cancel'), style: 'cancel' },
+        { text: t('files_cleanup_confirm_button'), style: 'destructive', onPress: runCleanupServer },
       ]
     );
   };
@@ -369,7 +375,7 @@ export default function FilesScreen({ route, navigation }: any) {
   const runCleanupServer = async () => {
     const apiKey = await SecureStore.getItemAsync('pocketforge_apikey_daytona');
     if (!apiKey) {
-      Alert.alert('محتاج مفتاح', 'روح لشاشة الإعدادات واحفظ مفتاح Daytona الأول');
+      Alert.alert(t('files_need_key_title'), t('files_need_key_message'));
       return;
     }
 
@@ -399,12 +405,12 @@ export default function FilesScreen({ route, navigation }: any) {
         }
       }
 
-      Alert.alert(
-        'تم',
-        `اتمسح سيرفر المشروع ده${cleanedCount > 0 ? `، وكمان ${cleanedCount} سيرفر تايه` : ''}.`
-      );
+      const orphansText = cleanedCount > 0
+        ? `${t('files_cleanup_success_orphans_suffix')} ${cleanedCount} ${t('files_cleanup_success_orphans_word')}`
+        : '';
+      Alert.alert(t('common_done'), `${t('files_cleanup_success')}${orphansText}.`);
     } catch (err: any) {
-      Alert.alert('خطأ', 'حصلت مشكلة أثناء تنظيف السيرفر: ' + String(err?.message || err));
+      Alert.alert(t('common_error'), t('files_cleanup_error') + String(err?.message || err));
     }
   };
   return (
@@ -428,13 +434,13 @@ export default function FilesScreen({ route, navigation }: any) {
       <View style={styles.fileTree}>
         <View style={styles.ftActions}>
           <TouchableOpacity style={styles.ftBtn} onPress={() => setFileModalVisible(true)}>
-            <Text style={styles.ftBtnText}>+ ملف</Text>
+            <Text style={styles.ftBtnText}>{t('files_new_file_short')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.ftBtn} onPress={() => setFolderModalVisible(true)}>
-            <Text style={styles.ftBtnText}>+ مجلد</Text>
+            <Text style={styles.ftBtnText}>{t('files_new_folder_short')}</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.ftBtn} onPress={handleImport}>
-            <Text style={styles.ftBtnText}>استيراد</Text>
+            <Text style={styles.ftBtnText}>{t('files_import')}</Text>
           </TouchableOpacity>
         </View>
 
@@ -473,24 +479,24 @@ export default function FilesScreen({ route, navigation }: any) {
 
       <InputModal
         visible={fileModalVisible}
-        title="ملف جديد"
-        placeholder="مثال: index.ts"
+        title={t('files_new_file_title')}
+        placeholder={t('files_new_file_placeholder')}
         onCancel={() => setFileModalVisible(false)}
         onSubmit={handleCreateFile}
       />
       <InputModal
         visible={folderModalVisible}
-        title="مجلد جديد"
-        placeholder="مثال: components"
+        title={t('files_new_folder_title')}
+        placeholder={t('files_new_folder_placeholder')}
         onCancel={() => setFolderModalVisible(false)}
         onSubmit={handleCreateFolder}
       />
       <InputModal
         visible={!!renameTarget}
-        title="إعادة تسمية"
-        placeholder="الاسم الجديد"
+        title={t('files_rename_title')}
+        placeholder={t('files_rename_placeholder')}
         initialValue={renameTarget?.name}
-        submitLabel="حفظ"
+        submitLabel={t('common_save')}
         onCancel={() => setRenameTarget(null)}
         onSubmit={handleRenameSubmit}
       />
@@ -498,9 +504,9 @@ export default function FilesScreen({ route, navigation }: any) {
       <ActionModal
         visible={!!deleteTarget}
         title={deleteTarget?.name ?? ''}
-        subtitle={deleteTarget?.type === 'folder' ? 'هيتحذف المجلد وكل اللي جواه' : 'اختر إجراء'}
+        subtitle={deleteTarget?.type === 'folder' ? t('files_delete_folder_warning') : t('common_choose_action')}
         onCancel={() => setDeleteTarget(null)}
-        options={[{ label: 'حذف', onPress: handleDeleteConfirm, destructive: true }]}
+        options={[{ label: t('common_delete'), onPress: handleDeleteConfirm, destructive: true }]}
       />
 
       <FileActionMenu
@@ -537,9 +543,9 @@ export default function FilesScreen({ route, navigation }: any) {
               resizeMode="contain"
             />
           ) : (
-            <Text style={styles.imagePreviewName}>مفيش محتوى محفوظ للصورة دي</Text>
+            <Text style={styles.imagePreviewName}>{t('files_image_no_content')}</Text>
           )}
-          <Text style={styles.imagePreviewHint}>دوس في أي مكان للإغلاق</Text>
+          <Text style={styles.imagePreviewHint}>{t('files_image_close_hint')}</Text>
         </TouchableOpacity>
       </Modal>
 
@@ -555,7 +561,7 @@ export default function FilesScreen({ route, navigation }: any) {
             <View style={styles.searchHeader}>
               <TextInput
                 style={styles.searchInput}
-                placeholder="ابحث عن ملف أو مجلد..."
+                placeholder={t('files_search_placeholder')}
                 placeholderTextColor={colors.textFaint}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
@@ -571,7 +577,7 @@ export default function FilesScreen({ route, navigation }: any) {
               keyboardShouldPersistTaps="handled"
               ListEmptyComponent={
                 searchQuery.trim().length > 0 ? (
-                  <Text style={styles.searchEmpty}>مفيش نتائج</Text>
+                  <Text style={styles.searchEmpty}>{t('files_search_empty')}</Text>
                 ) : null
               }
               renderItem={({ item }) => (
