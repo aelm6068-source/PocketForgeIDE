@@ -6,6 +6,7 @@ import React from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import * as Clipboard from 'expo-clipboard';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 type BrowserFrameProps = {
   children: React.ReactNode;
@@ -15,6 +16,7 @@ type BrowserFrameProps = {
 };
 
 export default function BrowserFrame({ children, url, viewport, onToggleViewport }: BrowserFrameProps) {
+  const { t } = useLanguage();
   return (
     <View style={styles.outer}>
       <View style={styles.window}>
@@ -29,7 +31,7 @@ export default function BrowserFrame({ children, url, viewport, onToggleViewport
             onPress={async () => {
               if (!url) return;
               await Clipboard.setStringAsync(url);
-              Alert.alert('تم النسخ', url);
+              Alert.alert(t('preview_url_copied_title'), url);
             }}
           >
             <Text style={styles.addressText} numberOfLines={1}>

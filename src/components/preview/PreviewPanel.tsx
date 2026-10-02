@@ -13,6 +13,7 @@ import { createSandbox, uploadProjectFiles, runExpoWeb, RunProgressStage } from 
 import MobileFrame from './MobileFrame';
 import BrowserFrame from './BrowserFrame';
 import PreviewToggle, { PreviewMode } from './PreviewToggle';
+import { useLanguage } from '../../i18n/LanguageContext';
 
 // كود بيمسك أي خطأ جافاسكريبت بيحصل جوه الصفحة (حتى لو حصل وهي لسه بتحمّل)
 // ويبعتهولنا كرسالة، عشان نشوف السبب الحقيقي بدل ما نفضل نخمّن
@@ -55,6 +56,7 @@ type PreviewPanelProps = {
 };
 
 export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
+  const { t } = useLanguage();
   const [mode, setMode] = useState<PreviewMode>('mobile');
   const [status, setStatus] = useState<RunProgressStage | 'idle'>('idle');
   const [message, setMessage] = useState('');
@@ -68,22 +70,22 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
     const apiKey = await SecureStore.getItemAsync('pocketforge_apikey_daytona');
     if (!apiKey) {
       setStatus('failed');
-      setMessage('محتاج تحفظ مفتاح Daytona في الإعدادات الأول');
+      setMessage(t('preview_need_key'));
       return;
     }
 
     setStatus('installing');
-    setMessage('جاري التجهيز...');
+    setMessage(t('preview_preparing'));
 
     try {
       let sandboxId = await loadSandboxId(projectId);
       if (!sandboxId) {
-        setMessage('جاري إنشاء بيئة تشغيل...');
+        setMessage(t('preview_creating_sandbox'));
         sandboxId = await createSandbox(apiKey);
         await saveSandboxId(projectId, sandboxId);
       }
 
-      setMessage('جاري رفع ملفات المشروع...');
+      setMessage(t('preview_uploading_files'));
       await uploadProjectFiles(apiKey, sandboxId, projectId, files);
 
       const url = await runExpoWeb(apiKey, sandboxId, (progress) => {
@@ -119,9 +121,9 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
       setHtmlContent(finalHtml);
     } catch (err: any) {
       setStatus('failed');
-      setMessage(err?.message ?? 'حصلت مشكلة غير متوقعة أثناء تجهيز المعاينة');
+      setMessage(err?.message ?? t('preview_unexpected_error'));
     }
-  }, [projectId, files]);
+  }, [projectId, files, t]);
 
   useEffect(() => {
     if (hasStarted.current) return;
@@ -152,9 +154,9 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
           style={styles.webview}
           injectedJavaScriptBeforeContentLoaded={JS_ERROR_CAPTURE_JS}
           injectedJavaScript={mode === 'mobile' ? MOBILE_MODE_INJECTED_JS : undefined}
-          onError={(e) => Alert.alert('خطأ WebView', JSON.stringify(e.nativeEvent))}
-          onHttpError={(e) => Alert.alert('خطأ HTTP', JSON.stringify(e.nativeEvent))}
-          onMessage={(e) => Alert.alert('خطأ جوه الصفحة', e.nativeEvent.data)}
+          onError={(e) => Alert.alert(t('preview_webview_error_title'), JSON.stringify(e.nativeEvent))}
+          onHttpError={(e) => Alert.alert(t('preview_http_error_title'), JSON.stringify(e.nativeEvent))}
+          onMessage={(e) => Alert.alert(t('preview_page_error_title'), e.nativeEvent.data)}
         />
       );
     }
@@ -164,7 +166,7 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
         <View style={styles.centerBox}>
           <Text style={styles.errorText}>{message}</Text>
           <TouchableOpacity style={styles.retryBtn} onPress={startPreview}>
-            <Text style={styles.retryText}>إعادة المحاولة</Text>
+            <Text style={styles.retryText}>{t('preview_retry')}</Text>
           </TouchableOpacity>
         </View>
       );
@@ -173,7 +175,7 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
     return (
       <View style={styles.centerBox}>
         <ActivityIndicator color={colors.accent} size="large" />
-        <Text style={styles.loadingText}>{message || 'جاري التجهيز...'}</Text>
+        <Text style={styles.loadingText}>{message || t('preview_preparing')}</Text>
       </View>
     );
   };
@@ -184,9 +186,7 @@ export default function PreviewPanel({ projectId, files }: PreviewPanelProps) {
 
       {mode === 'mobile' && (
         <View style={styles.warningBanner}>
-          <Text style={styles.warningText}>
-            ⚠️ دي معاينة شكل تقريبية بس - التشغيل الحقيقي الكامل في تطبيق Expo Go، والمعاينة هنا حاليًا بتعرض App.tsx فقط من غير تفاعل حقيقي
-          </Text>
+          <Text style={styles.warningText}>{t('preview_mobile_mode_warning')}</Text>
         </View>
       )}
 
@@ -267,4 +267,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.uiSemibold,
   },
-});
+});ط
