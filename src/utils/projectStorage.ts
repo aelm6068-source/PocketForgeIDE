@@ -120,3 +120,19 @@ export async function clearSandboxId(projectId: string): Promise<void> {
     console.warn('[projectStorage] فشل حذف sandboxId', e);
   }
 }
+// ⭐ يحدّث وقت "آخر تعديل" لمشروع معين بالوقت الحالي (بصيغة ISO) - بيتنادى
+// كل ما ملفات المشروع أو محتواها تتغير، عشان التاريخ المعروض يبقى حقيقي
+export async function touchProject(projectId: string): Promise<void> {
+  try {
+    const raw = await AsyncStorage.getItem(PROJECTS_LIST_KEY);
+    if (!raw) return;
+    const projects = JSON.parse(raw);
+    if (!Array.isArray(projects)) return;
+    const next = projects.map((p: any) =>
+      p.id === projectId ? { ...p, lastModified: new Date().toISOString() } : p
+    );
+    await AsyncStorage.setItem(PROJECTS_LIST_KEY, JSON.stringify(next));
+  } catch (e) {
+    console.warn('[projectStorage] فشل تحديث وقت آخر تعديل', e);
+  }
+}
