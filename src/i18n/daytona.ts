@@ -1,0 +1,71 @@
+// src/i18n/daytona.ts
+// نصوص رسائل التقدم والأخطاء اللي بتطلع من utils/daytonaClient.ts
+// {name} جوه النص بتتستبدل بقيمة وقت التشغيل (شوف translate.ts)
+export const daytona = {
+  ar: {
+    daytona_key_empty: 'المفتاح فاضي',
+    daytona_key_invalid: 'المفتاح غير صحيح أو منتهي الصلاحية',
+    daytona_connection_failed_code: 'فشل الاتصال (كود {code})',
+    daytona_connection_ok: 'الاتصال ناجح - المفتاح شغال',
+    daytona_connection_network_error: 'فشل الاتصال بالإنترنت أو بسيرفر Daytona',
+
+    daytona_request_failed: 'طلب فشل ({status}) على {url}{body}',
+    daytona_bad_response: 'السيرفر رجّع استجابة غريبة من غير sandbox id',
+    daytona_upload_failed: 'طلب رفع الملف فشل ({status}) - {body}',
+    daytona_upload_network_error: 'فشل الاتصال أثناء رفع الملف',
+
+    daytona_preparing_preview_link: 'جاري تجهيز رابط المعاينة...',
+    daytona_installing_and_starting: 'جاري تثبيت الحزم وتشغيل خادم Expo...',
+    daytona_unknown_log_error: 'خطأ غير معروف أثناء قراءة اللوجز',
+    daytona_npm_install_failed: 'فشل npm install',
+    daytona_install_packages_failed: 'فشل تثبيت الحزم:\n{logs}',
+    daytona_starting_expo: 'جاري تشغيل خادم Expo... ({current}/{max})',
+    daytona_expo_not_ready: 'محصلش خادم Expo متجهز خلال الوقت المتوقع',
+    daytona_last_logs: 'آخر محتوى من اللوجز:\n{logs}',
+    daytona_logs_empty: 'اللوجز رجعت فاضية طول الوقت',
+    daytona_timeout_log_error: 'انتهى الوقت المسموح - آخر خطأ في قراءة اللوجز: {error}',
+    daytona_timeout_metro: 'انتهى الوقت المسموح من غير ما يبقى Metro جاهز.\n{details}',
+    daytona_app_running: 'التطبيق شغال - الرابط جاهز',
+
+    daytona_preparing_web_link: 'جاري تجهيز رابط معاينة الويب...',
+    daytona_building_static: 'جاري بناء نسخة ثابتة من الموقع...',
+    daytona_install_failed_short: 'فشل تثبيت الحزم',
+    daytona_building_web: 'جاري بناء نسخة الويب... ({current}/{max})',
+    daytona_web_not_ready: 'محصلتش نسخة الويب تتجهز خلال الوقت المتوقع',
+    daytona_timeout_web: 'انتهى الوقت المسموح من غير ما نسخة الويب تجهز.\n{details}',
+    daytona_web_ready: 'معاينة الويب جاهزة',
+  },
+  en: {
+    daytona_key_empty: 'The key is empty',
+    daytona_key_invalid: 'The key is invalid or expired',
+    daytona_connection_failed_code: 'Connection failed (code {code})',
+    daytona_connection_ok: 'Connection successful - the key works',
+    daytona_connection_network_error: 'Failed to connect to the internet or the Daytona server',
+
+    daytona_request_failed: 'Request failed ({status}) on {url}{body}',
+    daytona_bad_response: 'The server returned an unexpected response without a sandbox id',
+    daytona_upload_failed: 'File upload request failed ({status}) - {body}',
+    daytona_upload_network_error: 'Connection failed while uploading the file',
+
+    daytona_preparing_preview_link: 'Preparing the preview link...',
+    daytona_installing_and_starting: 'Installing packages and starting the Expo server...',
+    daytona_unknown_log_error: 'Unknown error while reading the logs',
+    daytona_npm_install_failed: 'npm install failed',
+    daytona_install_packages_failed: 'Package installation failed:\n{logs}',
+    daytona_starting_expo: 'Starting the Expo server... ({current}/{max})',
+    daytona_expo_not_ready: 'The Expo server was not ready within the expected time',
+    daytona_last_logs: 'Latest log output:\n{logs}',
+    daytona_logs_empty: 'The logs stayed empty the whole time',
+    daytona_timeout_log_error: 'Timed out - last error while reading the logs: {error}',
+    daytona_timeout_metro: 'Timed out before Metro became ready.\n{details}',
+    daytona_app_running: 'The app is running - the link is ready',
+
+    daytona_preparing_web_link: 'Preparing the web preview link...',
+    daytona_building_static: 'Building a static version of the site...',
+    daytona_install_failed_short: 'Package installation failed',
+    daytona_building_web: 'Building the web version... ({current}/{max})',
+    daytona_web_not_ready: 'The web version was not ready within the expected time',
+    daytona_timeout_web: 'Timed out before the web version became ready.\n{details}',
+    daytona_web_ready: 'Web preview is ready',
+  },
+};

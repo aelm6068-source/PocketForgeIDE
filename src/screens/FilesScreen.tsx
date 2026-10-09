@@ -16,7 +16,7 @@ import ActionModal from '../components/ActionModal';
 import FileActionMenu, { FileActionTarget } from '../components/FileActionMenu';
 import AppDrawer from '../components/AppDrawer';
 import PreviewPanel from '../components/preview/PreviewPanel';
-import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
+import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, deleteFileContent, touchProject, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
 import * as SecureStore from 'expo-secure-store';
 import { createSandbox, uploadProjectFiles, runExpoTunnel, RunProgressStage, deleteSandbox, listSandboxes } from '../utils/daytonaClient';
 import RunSandboxModal from '../components/RunSandboxModal';
@@ -87,6 +87,7 @@ export default function FilesScreen({ route, navigation }: any) {
   const persistFiles = useCallback((next: ProjectFile[]) => {
     setFiles(next);
     saveProjectFiles(projectId, next);
+        touchProject(projectId);
   }, [projectId]);
 
   // ⭐ الجديد: يبني تسلسل المجلدات من الجذر لحد مجلد معين - مستخدم لما نفتح نتيجة بحث
@@ -312,6 +313,11 @@ export default function FilesScreen({ route, navigation }: any) {
     const idsToDelete = deleteTarget.type === 'folder'
       ? [deleteTarget.id, ...getDescendantIds(deleteTarget.id, files)]
       : [deleteTarget.id];
+
+        // مسح محتوى الملفات المحذوفة من الجهاز (المجلدات ملهاش محتوى)
+    files
+      .filter((f) => idsToDelete.includes(f.id) && f.type === 'file')
+      .forEach((f) => deleteFileContent(projectId, f.id));
 
     persistFiles(files.filter((f) => !idsToDelete.includes(f.id)));
     setDeleteTarget(null);

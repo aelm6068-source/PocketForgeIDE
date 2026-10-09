@@ -1,5 +1,5 @@
 // src/screens/ProjectsScreen.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, TouchableOpacity } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius } from '../theme/colors';
@@ -12,9 +12,18 @@ import { useLanguage } from '../i18n/LanguageContext';
 
 export default function ProjectsScreen({ navigation }: any) {
   const { t } = useLanguage();
-  const { projects, addProject, deleteProject } = useProjects();
+  const { projects, addProject, deleteProject, reload } = useProjects();
   const [addModalVisible, setAddModalVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  // كل ما نرجع لشاشة المشاريع (مثلًا بعد الشغل جوه مشروع) نعيد قراءة القايمة
+  // عشان وقت "آخر تعديل" يتحدّث
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('focus', () => {
+      reload();
+    });
+    return unsubscribe;
+  }, [navigation, reload]);
 
   const handleCreate = (name: string, language: ProjectLanguage) => {
     addProject(name, language);

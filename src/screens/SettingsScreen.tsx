@@ -1,4 +1,4 @@
-// src/screens/SettingsScreen.tsx.
+// src/screens/SettingsScreen.tsx
 import React, { useEffect, useState, useCallback } from 'react';
 import {
   View,
@@ -55,26 +55,21 @@ export default function SettingsScreen() {
     message: string;
   } | null>(null);
   const [loaded, setLoaded] = useState(false);
-  const [expoToken, setExpoToken] = useState('');
-  const [showExpoToken, setShowExpoToken] = useState(false);
-  const [expoTokenSaved, setExpoTokenSaved] = useState(false);
 
   // تحميل القيم المحفوظة عند فتح الشاشة
   useEffect(() => {
     (async () => {
       try {
-        const [storedE2b, storedDaytona, storedActive, storedExpoToken] = await Promise.all([
+        const [storedE2b, storedDaytona, storedActive] = await Promise.all([
           SecureStore.getItemAsync(STORAGE_KEYS.e2bKey),
           SecureStore.getItemAsync(STORAGE_KEYS.daytonaKey),
           SecureStore.getItemAsync(STORAGE_KEYS.activeProvider),
-          SecureStore.getItemAsync('pocketforge_apikey_expo'),
         ]);
         if (storedE2b) setE2bKey(storedE2b);
         if (storedDaytona) setDaytonaKey(storedDaytona);
         if (storedActive === 'e2b' || storedActive === 'daytona') {
           setActiveProvider(storedActive);
         }
-        if (storedExpoToken) setExpoToken(storedExpoToken);
       } catch (err) {
         console.warn('فشل تحميل المفاتيح المحفوظة', err);
       } finally {
@@ -116,20 +111,6 @@ export default function SettingsScreen() {
       Alert.alert(t('common_error'), t('settings_open_link_error'));
     });
   }, [t]);
-
-  const handleSaveExpoToken = useCallback(async () => {
-    if (!expoToken.trim()) {
-      Alert.alert(t('settings_alert_title'), t('settings_enter_token_first'));
-      return;
-    }
-    try {
-      await SecureStore.setItemAsync('pocketforge_apikey_expo', expoToken.trim());
-      setExpoTokenSaved(true);
-      setTimeout(() => setExpoTokenSaved(false), 1800);
-    } catch (err) {
-      Alert.alert(t('common_error'), t('settings_save_token_error'));
-    }
-  }, [expoToken, t]);
 
   const handleTestConnection = useCallback(async (provider: Provider) => {
     const storageKey =
@@ -215,36 +196,6 @@ export default function SettingsScreen() {
         saved={savedFlag === 'daytona'}
         isActive={activeProvider === 'daytona'}
       />
-
-      {/* كارت توكن Expo (اختياري) - بيخلي الـ tunnel موثّق بدل مجهول، وأكتر استقرارًا */}
-      <View style={styles.card}>
-        <View style={styles.cardHeader}>
-          <Text style={styles.cardTitle}>{t('settings_expo_token_title')}</Text>
-        </View>
-        <Text style={styles.expoTokenHint}>{t('settings_expo_token_hint')}</Text>
-        <View style={styles.inputRow}>
-          <TextInput
-            style={styles.input}
-            value={expoToken}
-            onChangeText={setExpoToken}
-            placeholder={t('settings_expo_token_placeholder')}
-            placeholderTextColor={colors.textFaint}
-            secureTextEntry={!showExpoToken}
-            autoCapitalize="none"
-            autoCorrect={false}
-          />
-          <TouchableOpacity onPress={() => setShowExpoToken((v) => !v)} style={styles.eyeButton}>
-            <Text style={styles.eyeButtonText}>
-              {showExpoToken ? t('settings_hide') : t('settings_show')}
-            </Text>
-          </TouchableOpacity>
-        </View>
-        <TouchableOpacity onPress={handleSaveExpoToken} style={[styles.saveButton, { alignSelf: 'flex-end', marginTop: spacing.sm }]}>
-          <Text style={styles.saveButtonText}>
-            {expoTokenSaved ? t('settings_saved_checkmark') : t('settings_save_button')}
-          </Text>
-        </TouchableOpacity>
-      </View>
 
       <Text style={styles.footerNote}>{t('settings_footer_note')}</Text>
     </ScrollView>
@@ -420,12 +371,6 @@ const styles = StyleSheet.create({
     color: colors.textFaint,
     fontFamily: fonts.ui,
     fontSize: 11,
-  },
-  expoTokenHint: {
-    color: colors.textFaint,
-    fontFamily: fonts.ui,
-    fontSize: 11,
-    marginBottom: spacing.sm,
   },
   inputRow: {
     flexDirection: 'row',

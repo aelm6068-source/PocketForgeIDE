@@ -12,6 +12,7 @@ import { appDrawer } from './appDrawer';
 import { runSandbox } from './runSandbox';
 import { editor } from './editor';
 import { preview } from './preview';
+import { daytona } from './daytona';
 
 export const translations = {
  ar: {
@@ -23,6 +24,7 @@ export const translations = {
     ...runSandbox.ar,
     ...editor.ar,
     ...preview.ar,
+    ...daytona.ar,
   },
   en: {
     ...common.en,
@@ -33,6 +35,7 @@ export const translations = {
     ...runSandbox.en,
     ...editor.en,
     ...preview.en,
+    ...daytona.en,
   }, 
 } as const;
 

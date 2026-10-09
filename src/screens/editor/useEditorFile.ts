@@ -6,6 +6,7 @@ import {
   saveFileContent,
   loadFileContent,
   deleteFileContent,
+   touchProject,
 } from '../../utils/projectStorage';
 
 export interface ProjectFile {
@@ -170,6 +171,7 @@ export function useEditorFile(projectId: string, initialProjectFiles: ProjectFil
     );
     if (!isDirty) {
       saveFileContent(projectId, fileId, content);
+      touchProject(projectId);
     }
   }, [projectId]);
 

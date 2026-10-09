@@ -136,3 +136,20 @@ export async function touchProject(projectId: string): Promise<void> {
     console.warn('[projectStorage] فشل تحديث وقت آخر تعديل', e);
   }
 }
+// ⭐ يمسح كل بيانات مشروع من الجهاز: قايمة ملفاته، محتوى ملفاته (المجلد كله)،
+// ومعرّف سيرفره. بيتنادى لما المستخدم يحذف مشروع بالكامل.
+export async function deleteProjectData(projectId: string): Promise<void> {
+  try {
+    await AsyncStorage.multiRemove([filesKey(projectId), sandboxKey(projectId)]);
+  } catch (e) {
+    console.warn('[projectStorage] فشل مسح بيانات المشروع', e);
+  }
+  try {
+    const dir = contentDirectory(projectId);
+    if (dir.exists) {
+      dir.delete();
+    }
+  } catch (e) {
+    console.warn('[projectStorage] فشل مسح مجلد محتوى المشروع', e);
+  }
+}

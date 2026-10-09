@@ -1,10 +1,12 @@
 // src/utils/daytonaClient.ts
-// طبقة الاتصال بـ Daytona API - اختبار المفتاح + إنشاء Sandbox + رفع الملفات + تشغيل expo tunnel + تنظيف السيرفرات
+// طبقة الاتصال بـ Daytona API - اختبار المفتاح + إنشاء Sandbox + رفع الملفات + تشغيل المشروع
+// (Expo Go عبر رابط معاينة موقّع + نسخة ويب) + تنظيف السيرفرات
 
 import { ProjectFile, buildFilePath } from '../screens/editor/useEditorFile';
 import { loadFileContent } from './projectStorage';
 import { File, Paths } from 'expo-file-system';
 import { isImageFile } from '../theme/defaultAssets';
+import { translate } from '../i18n/translate';
 
 // يحوّل نص base64 لـ Uint8Array عشان نكتب بيانات binary حقيقية (صور) بدل نص
 function base64ToBytes(base64: string): Uint8Array {
@@ -35,7 +37,7 @@ export async function testDaytonaConnection(
   apiKey: string
 ): Promise<ConnectionTestResult> {
   if (!apiKey || !apiKey.trim()) {
-    return { success: false, message: 'المفتاح فاضي' };
+    return { success: false, message: translate('daytona_key_empty') };
   }
 
   try {
@@ -47,21 +49,21 @@ export async function testDaytonaConnection(
     });
 
     if (response.status === 401 || response.status === 403) {
-      return { success: false, message: 'المفتاح غير صحيح أو منتهي الصلاحية' };
+      return { success: false, message: translate('daytona_key_invalid') };
     }
 
     if (!response.ok) {
       return {
         success: false,
-        message: `فشل الاتصال (كود ${response.status})`,
+        message: translate('daytona_connection_failed_code', { code: response.status }),
       };
     }
 
-    return { success: true, message: 'الاتصال ناجح - المفتاح شغال' };
+    return { success: true, message: translate('daytona_connection_ok') };
   } catch (err: any) {
     return {
       success: false,
-      message: 'فشل الاتصال بالإنترنت أو بسيرفر Daytona',
+      message: translate('daytona_connection_network_error'),
     };
   }
 }
@@ -87,8 +89,14 @@ async function daytonaFetch(
 
   if (!response.ok) {
     const bodyText = await response.text().catch(() => '');
+    // مهم: كود الحالة (404/409) لازم يفضل جوه الرسالة، لأن deleteSandbox
+    // وFilesScreen بيعتمدوا على err.message.includes('404')
     throw new DaytonaError(
-      `طلب فشل (${response.status}) على ${url}${bodyText ? ' - ' + bodyText : ''}`
+      translate('daytona_request_failed', {
+        status: response.status,
+        url,
+        body: bodyText ? ' - ' + bodyText : '',
+      })
     );
   }
 
@@ -111,7 +119,7 @@ export async function createSandbox(apiKey: string): Promise<string> {
   const data = await response.json();
   const sandboxId = data.id;
   if (!sandboxId) {
-    throw new DaytonaError('السيرفر رجّع استجابة غريبة من غير sandbox id');
+    throw new DaytonaError(translate('daytona_bad_response'));
   }
   return sandboxId;
 }
@@ -176,10 +184,14 @@ async function uploadFileContent(
         if (xhr.status >= 200 && xhr.status < 300) {
           resolve();
         } else {
-          reject(new DaytonaError(`طلب رفع الملف فشل (${xhr.status}) - ${xhr.responseText}`));
+          reject(
+            new DaytonaError(
+              translate('daytona_upload_failed', { status: xhr.status, body: xhr.responseText })
+            )
+          );
         }
       };
-      xhr.onerror = () => reject(new DaytonaError('فشل الاتصال أثناء رفع الملف'));
+      xhr.onerror = () => reject(new DaytonaError(translate('daytona_upload_network_error')));
       xhr.send(form as any);
     });
   } finally {
@@ -228,7 +240,7 @@ export async function uploadProjectFiles(
 }
 
 // ---------------------------------------------------------------------------
-// تشغيل npm install ثم expo start --tunnel
+// تشغيل المشروع في Expo Go (npm install ثم expo start + رابط معاينة موقّع)
 // ---------------------------------------------------------------------------
 
 async function createSession(apiKey: string, sandboxId: string): Promise<string> {
@@ -313,12 +325,12 @@ async function getSignedPreviewUrl(
  * يشغّل npm install ثم expo start (من غير --tunnel خالص، يعني من غير أي اعتماد على
  * ngrok) جوا Sandbox، وبعد ما Metro يبقى جاهز، بياخد رابط معاينة عام من Daytona
  * نفسه لبورت 8081 ويحوّله لصيغة exp:// عشان Expo Go يقدر يفتحه مباشرة.
+ * (الاسم القديم runExpoTunnel اتسابت كما هي عشان مفيش حاجة تانية تتغير في الاستدعاءات)
  */
 export async function runExpoTunnel(
   apiKey: string,
   sandboxId: string,
-  onProgress: (progress: RunProgress) => void,
-  expoToken?: string
+  onProgress: (progress: RunProgress) => void
 ): Promise<string> {
   const sessionId = await createSession(apiKey, sandboxId);
   const METRO_PORT = 8081;
@@ -326,12 +338,12 @@ export async function runExpoTunnel(
   // نجيب رابط المعاينة الأول (قبل ما نشغّل حاجة) عشان نقدر نبلّغ Metro بيه
   // كمتغيرات بيئة - من غيرها Metro بيفتكر إنه شغال محليًا ويوجّه Expo Go
   // لـ 127.0.0.1 (مش وصول من الموبايل)
-  onProgress({ stage: 'installing', message: 'جاري تجهيز رابط المعاينة...' });
+  onProgress({ stage: 'installing', message: translate('daytona_preparing_preview_link') });
   const preview = await getSignedPreviewUrl(apiKey, sandboxId, METRO_PORT, 3600);
   const previewUrl = preview.url;
   const previewHost = previewUrl.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
-  onProgress({ stage: 'installing', message: 'جاري تثبيت الحزم وتشغيل خادم Expo...' });
+  onProgress({ stage: 'installing', message: translate('daytona_installing_and_starting') });
   // ملحوظة: مبقيناش محتاجين توكن Expo أو @expo/ngrok خالص هنا، لأننا مش بنستخدم
   // tunnel بتاع Expo أصلًا - العرض العام بيحصل عبر Daytona preview URL مباشرة
   //
@@ -367,18 +379,20 @@ export async function runExpoTunnel(
       lastLogError = null;
       if (logs) lastLogsSnapshot = logs;
     } catch (err: any) {
-      lastLogError = err?.message ?? 'خطأ غير معروف أثناء قراءة اللوجز';
+      lastLogError = err?.message ?? translate('daytona_unknown_log_error');
       continue;
     }
 
     if (/npm error|npm ERR!/i.test(logs)) {
-      onProgress({ stage: 'failed', message: 'فشل npm install' });
-      throw new DaytonaError(`فشل تثبيت الحزم:\n${logs.slice(-500)}`);
+      onProgress({ stage: 'failed', message: translate('daytona_npm_install_failed') });
+      throw new DaytonaError(
+        translate('daytona_install_packages_failed', { logs: logs.slice(-500) })
+      );
     }
 
     onProgress({
       stage: 'starting',
-      message: `جاري تشغيل خادم Expo... (${attempt + 1}/${maxAttempts})`,
+      message: translate('daytona_starting_expo', { current: attempt + 1, max: maxAttempts }),
     });
 
     if (METRO_READY_REGEX.test(logs)) {
@@ -388,26 +402,25 @@ export async function runExpoTunnel(
   }
 
   if (!metroReady) {
-    onProgress({ stage: 'failed', message: 'محصلش خادم Expo متجهز خلال الوقت المتوقع' });
+    onProgress({ stage: 'failed', message: translate('daytona_expo_not_ready') });
     const snapshotPreview = lastLogsSnapshot
-      ? `آخر محتوى من اللوجز:\n${lastLogsSnapshot.slice(-500)}`
-      : 'اللوجز رجعت فاضية طول الوقت';
+      ? translate('daytona_last_logs', { logs: lastLogsSnapshot.slice(-500) })
+      : translate('daytona_logs_empty');
     throw new DaytonaError(
       lastLogError
-        ? `انتهى الوقت المسموح - آخر خطأ في قراءة اللوجز: ${lastLogError}`
-        : `انتهى الوقت المسموح من غير ما يبقى Metro جاهز.\n${snapshotPreview}`
+        ? translate('daytona_timeout_log_error', { error: lastLogError })
+        : translate('daytona_timeout_metro', { details: snapshotPreview })
     );
   }
 
   // نستخدم نفس رابط المعاينة اللي جهزناه بالظبط (بدل ما نطلبه تاني) عشان يتطابق مع اللي Metro اتظبط عليه
   const expUrl = previewUrl.replace(/^https?:\/\//, 'exp://');
 
-  onProgress({ stage: 'ready', message: 'التطبيق شغال - الرابط جاهز', tunnelUrl: expUrl });
+  onProgress({ stage: 'ready', message: translate('daytona_app_running'), tunnelUrl: expUrl });
   return expUrl;
 }
-
 // ---------------------------------------------------------------------------
-// ⭐ الجديد: تنظيف الـ Sandboxes - مسح سيرفر مشروع معين + تنضيف أي سيرفرات تايهة
+// تنظيف الـ Sandboxes - مسح سيرفر مشروع معين + تنضيف أي سيرفرات تايهة
 // ---------------------------------------------------------------------------
 
 export type DaytonaSandboxInfo = {
@@ -429,7 +442,8 @@ export async function listSandboxes(apiKey: string): Promise<DaytonaSandboxInfo[
 
 /**
  * يحذف Sandbox واحد بالـ id بتاعه. بنتجاهل خطأ 404 (يبقى أصلًا اتمسح أو مات
- * لوحده) عشان عملية التنظيف الجماعية متقفش على sandbox واحد مش موجود.
+ * لوحده) و409 (في حالة تغيير جارية) عشان عملية التنظيف الجماعية متقفش على
+ * sandbox واحد.
  */
 export async function deleteSandbox(apiKey: string, sandboxId: string): Promise<void> {
   try {
@@ -442,13 +456,14 @@ export async function deleteSandbox(apiKey: string, sandboxId: string): Promise<
     }
   }
 }
+
 // ---------------------------------------------------------------------------
-// ⭐ الجديد: تشغيل نسخة ويب من المشروع (لمعاينة المتصفح الحقيقية)
+// تشغيل نسخة ويب من المشروع (لمعاينة المتصفح الحقيقية)
 // ---------------------------------------------------------------------------
 
 /**
- * يشغّل نسخة ويب من نفس المشروع (expo start --web) على بورت منفصل (8082) عن
- * بورت الموبايل (8081) عشان يقدروا يشتغلوا مع بعض من غير تعارض لو المستخدم
+ * يبني نسخة ويب ثابتة من نفس المشروع (expo export) ويقدّمها على بورت منفصل (8082)
+ * عن بورت الموبايل (8081) عشان يقدروا يشتغلوا مع بعض من غير تعارض لو المستخدم
  * فاتح "فتح في Expo Go" في نفس الوقت. بترجع رابط ويب عادي (https) جاهز للعرض
  * جوه WebView مباشرة.
  */
@@ -460,11 +475,11 @@ export async function runExpoWeb(
   const sessionId = await createSession(apiKey, sandboxId);
   const WEB_PORT = 8082;
 
-  onProgress({ stage: 'installing', message: 'جاري تجهيز رابط معاينة الويب...' });
+  onProgress({ stage: 'installing', message: translate('daytona_preparing_web_link') });
   const preview = await getSignedPreviewUrl(apiKey, sandboxId, WEB_PORT, 3600);
   const previewUrl = preview.url;
 
-  onProgress({ stage: 'installing', message: 'جاري بناء نسخة ثابتة من الموقع...' });
+  onProgress({ stage: 'installing', message: translate('daytona_building_static') });
   // بنعمل export ثابت (static) بدل تشغيل سيرفر تطوير حي - في وضع التطوير Metro
   // بيحمّل أجزاء من الكود بشكل كسول (lazy) مباشرة من السيرفر وقت التشغيل نفسه،
   // وده بيتعارض مع تحذير Daytona (الأجزاء دي بترجع صفحة التحذير بدل الكود
@@ -494,15 +509,15 @@ export async function runExpoWeb(
     }
 
     if (/npm error|npm ERR!/i.test(logs)) {
-      onProgress({ stage: 'failed', message: 'فشل تثبيت الحزم' });
+      onProgress({ stage: 'failed', message: translate('daytona_install_failed_short') });
       const errorIndex = logs.search(/npm error|npm ERR!/i);
       const relevantLogs = logs.slice(Math.max(0, errorIndex - 100), errorIndex + 900);
-      throw new DaytonaError(`فشل تثبيت الحزم:\n${relevantLogs}`);
+      throw new DaytonaError(translate('daytona_install_packages_failed', { logs: relevantLogs }));
     }
 
     onProgress({
       stage: 'starting',
-      message: `جاري بناء نسخة الويب... (${attempt + 1}/${maxAttempts})`,
+      message: translate('daytona_building_web', { current: attempt + 1, max: maxAttempts }),
     });
 
     // "serve" بيطبع رسالة زي "Accepting connections at" لما يجهز فعليًا
@@ -513,12 +528,12 @@ export async function runExpoWeb(
   }
 
   if (!webReady) {
-    onProgress({ stage: 'failed', message: 'محصلتش نسخة الويب تتجهز خلال الوقت المتوقع' });
+    onProgress({ stage: 'failed', message: translate('daytona_web_not_ready') });
     throw new DaytonaError(
-      `انتهى الوقت المسموح من غير ما نسخة الويب تجهز.\n${lastLogsSnapshot.slice(-500)}`
+      translate('daytona_timeout_web', { details: lastLogsSnapshot.slice(-500) })
     );
   }
 
-  onProgress({ stage: 'ready', message: 'معاينة الويب جاهزة', tunnelUrl: previewUrl });
+  onProgress({ stage: 'ready', message: translate('daytona_web_ready'), tunnelUrl: previewUrl });
   return previewUrl;
 }

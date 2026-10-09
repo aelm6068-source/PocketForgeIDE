@@ -6,6 +6,7 @@ import React, { createContext, useContext, useEffect, useState, useCallback, use
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Localization from 'expo-localization';
 import { translations, Language, TranslationKey } from './translations';
+import { setCurrentLanguage } from './translate';
 
 export type LanguagePreference = 'auto' | 'ar' | 'en';
 
@@ -54,6 +55,8 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     () => (preference === 'auto' ? getDeviceDefaultLanguage() : preference),
     [preference]
   );
+    // نحدّث مترجم الملفات العادية (اللي مش مكونات) باللغة الحالية
+  setCurrentLanguage(language);
 
   const t = useCallback(
     (key: TranslationKey): string => {

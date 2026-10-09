@@ -11,8 +11,25 @@ interface Props {
   onLongPress: () => void;
 }
 
+// بيحوّل التاريخ المحفوظ (ISO) لنص مقروء حسب لغة التطبيق
+function formatLastModified(iso: string, language: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  try {
+    return date.toLocaleString(language === 'ar' ? 'ar-EG' : 'en-US', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: 'numeric',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso.slice(0, 10);
+  }
+}
+
 export default function ProjectCard({ project, onPress, onLongPress }: Props) {
-  const { t } = useLanguage();
+  const { t, language } = useLanguage();
   const isTs = project.language === 'typescript';
 
   return (
@@ -40,7 +57,9 @@ export default function ProjectCard({ project, onPress, onLongPress }: Props) {
         </View>
       </View>
       <Text style={styles.name}>{project.name}</Text>
-      <Text style={styles.meta}>{t('projects_last_modified')} {project.lastModified}</Text>
+      <Text style={styles.meta}>
+        {t('projects_last_modified')} {formatLastModified(project.lastModified, language)}
+      </Text>
     </TouchableOpacity>
   );
 }
