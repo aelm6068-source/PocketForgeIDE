@@ -47,7 +47,7 @@ export default function FilesScreen({ route, navigation }: any) {
   const [runMessage, setRunMessage] = useState('');
   const [runTunnelUrl, setRunTunnelUrl] = useState<string | undefined>(undefined);
   const [imagePreview, setImagePreview] = useState<{ name: string; base64: string | null } | null>(null);
-  // ⭐ الجديد: حالة البحث في الملفات والمجلدات
+  // حالة البحث في الملفات والمجلدات
   const [searchVisible, setSearchVisible] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
@@ -87,10 +87,10 @@ export default function FilesScreen({ route, navigation }: any) {
   const persistFiles = useCallback((next: ProjectFile[]) => {
     setFiles(next);
     saveProjectFiles(projectId, next);
-        touchProject(projectId);
+    touchProject(projectId);
   }, [projectId]);
 
-  // ⭐ الجديد: يبني تسلسل المجلدات من الجذر لحد مجلد معين - مستخدم لما نفتح نتيجة بحث
+  // يبني تسلسل المجلدات من الجذر لحد مجلد معين - مستخدم لما نفتح نتيجة بحث
   // موجودة جوه مجلد تاني، عشان زرار الرجوع يشتغل صح بعدها
   const buildFolderStackTo = useCallback((folderId: string): { id: string; name: string }[] => {
     const chain: { id: string; name: string }[] = [];
@@ -103,7 +103,7 @@ export default function FilesScreen({ route, navigation }: any) {
     return chain;
   }, [files]);
 
-  // ⭐ الجديد: نتائج البحث - بالاسم بس، وبتدور في كل ملفات ومجلدات المشروع مش بس المجلد الحالي
+  // نتائج البحث - بالاسم بس، وبتدور في كل ملفات ومجلدات المشروع مش بس المجلد الحالي
   const searchResults = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return [];
@@ -207,7 +207,7 @@ export default function FilesScreen({ route, navigation }: any) {
     }
   };
 
-  // ⭐ الجديد: فتح نتيجة بحث - لو مجلد نبني مسار كامل ليه من الجذر، لو ملف نفتحه عادي
+  // فتح نتيجة بحث - لو مجلد نبني مسار كامل ليه من الجذر، لو ملف نفتحه عادي
   const handleSearchResultPress = (item: ProjectFile) => {
     closeSearch();
     if (item.type === 'folder') {
@@ -314,7 +314,7 @@ export default function FilesScreen({ route, navigation }: any) {
       ? [deleteTarget.id, ...getDescendantIds(deleteTarget.id, files)]
       : [deleteTarget.id];
 
-        // مسح محتوى الملفات المحذوفة من الجهاز (المجلدات ملهاش محتوى)
+    // مسح محتوى الملفات المحذوفة من الجهاز (المجلدات ملهاش محتوى)
     files
       .filter((f) => idsToDelete.includes(f.id) && f.type === 'file')
       .forEach((f) => deleteFileContent(projectId, f.id));
@@ -350,12 +350,11 @@ export default function FilesScreen({ route, navigation }: any) {
         setRunMessage(`${t('files_run_uploading_progress')} (${progress.done}/${progress.total})`);
       });
 
-      const expoToken = await SecureStore.getItemAsync('pocketforge_apikey_expo');
       const tunnelUrl = await runExpoTunnel(apiKey, sandboxId, (progress) => {
         setRunStage(progress.stage);
         setRunMessage(progress.message);
         if (progress.tunnelUrl) setRunTunnelUrl(progress.tunnelUrl);
-      }, expoToken ?? undefined);
+      });
 
       setRunTunnelUrl(tunnelUrl);
     } catch (err: any) {
@@ -419,7 +418,7 @@ export default function FilesScreen({ route, navigation }: any) {
       Alert.alert(t('common_error'), t('files_cleanup_error') + String(err?.message || err));
     }
   };
-  return (
+    return (
     <View style={styles.container}>
       <View style={styles.topbar}>
         <TouchableOpacity style={styles.iconBtn} onPress={handleBack}>
@@ -555,7 +554,7 @@ export default function FilesScreen({ route, navigation }: any) {
         </TouchableOpacity>
       </Modal>
 
-      {/* ⭐ الجديد: مودال البحث في الملفات والمجلدات */}
+      {/* مودال البحث في الملفات والمجلدات */}
       <Modal
         visible={searchVisible}
         transparent
@@ -622,7 +621,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.lg,
     paddingTop: spacing.md,
     paddingBottom: spacing.sm,
-    gap: spacing.sm
+    gap: spacing.sm,
   },
   iconBtn: {
     width: 34, height: 34, borderRadius: radius.md,
@@ -669,7 +668,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     marginTop: spacing.lg,
   },
-  // ⭐ الجديد: ستايلات مودال البحث
+  // ستايلات مودال البحث
   searchOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.6)',
