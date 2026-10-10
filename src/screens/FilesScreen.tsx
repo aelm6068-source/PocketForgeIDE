@@ -29,6 +29,8 @@ import {
 import { isImageFile } from '../theme/defaultAssets';
 import { buildProjectFiles, buildProjectFileContents } from '../utils/projectTemplate';
 import { useLanguage } from '../i18n/LanguageContext';
+import { onProjectFilesChanged } from '../utils/projectEvents';
+import { checkNewName, makeUniqueName } from '../utils/fileNames';
 
 export default function FilesScreen({ route, navigation }: any) {
   const { t } = useLanguage();
@@ -78,6 +80,13 @@ export default function FilesScreen({ route, navigation }: any) {
       }
     });
   }, [projectId, language]);
+    // لو حد غيّر ملفات المشروع من بره الشاشة دي (الطرفية، وبعدين الـ MCP) نعيد تحميل القايمة
+  useEffect(() => {
+    return onProjectFilesChanged(projectId, async () => {
+      const saved = await loadProjectFiles(projectId);
+      if (saved) setFiles(saved as ProjectFile[]);
+    });
+  }, [projectId]);
 
   const visibleFiles = useMemo(
     () => getChildren(currentFolderId, files),
@@ -125,6 +134,19 @@ export default function FilesScreen({ route, navigation }: any) {
       navigation.goBack();
     }
   };
+    // يتأكد إن الاسم صالح وغير مكرر جوه المجلد، ولو فيه مشكلة يعرض تنبيه ويرجّع false
+  const validateName = (name: string, parentId: string | null, excludeId?: string): boolean => {
+    const result = checkNewName(files, parentId, name, excludeId);
+    if (result === 'invalid') {
+      Alert.alert(t('common_error'), t('files_name_invalid'));
+      return false;
+    }
+    if (result === 'exists') {
+      Alert.alert(t('common_error'), t('files_name_exists'));
+      return false;
+    }
+    return true;
+  };
 
   const handleImport = async () => {
     try {
@@ -133,7 +155,7 @@ export default function FilesScreen({ route, navigation }: any) {
       const picked = result.assets[0];
       const newFile: ProjectFile = {
         id: Date.now().toString(),
-        name: picked.name,
+                name: makeUniqueName(files, currentFolderId, picked.name),
         type: 'file',
         parentId: currentFolderId,
       };
@@ -171,6 +193,7 @@ export default function FilesScreen({ route, navigation }: any) {
   };
 
   const handleCreateFile = (name: string) => {
+        if (!validateName(name, currentFolderId)) return;
     const newFile: ProjectFile = {
       id: Date.now().toString(),
       name,
@@ -182,6 +205,7 @@ export default function FilesScreen({ route, navigation }: any) {
   };
 
   const handleCreateFolder = (name: string) => {
+        if (!validateName(name, currentFolderId)) return;
     const newFolder: ProjectFile = {
       id: Date.now().toString(),
       name,
@@ -265,7 +289,7 @@ export default function FilesScreen({ route, navigation }: any) {
         const dotIndex = original.name.lastIndexOf('.');
         const baseName = dotIndex > 0 ? original.name.slice(0, dotIndex) : original.name;
         const ext = dotIndex > 0 ? original.name.slice(dotIndex) : '';
-        const copyName = `${baseName}-copy${ext}`;
+                const copyName = makeUniqueName(files, original.parentId, `${baseName}-copy${ext}`);
         const content = await loadFileContent(projectId, target.id);
 
         const newFile: ProjectFile = {
@@ -303,6 +327,8 @@ export default function FilesScreen({ route, navigation }: any) {
 
   const handleRenameSubmit = (newName: string) => {
     if (!renameTarget) return;
+        const renamed = files.find((f) => f.id === renameTarget.id);
+    if (!renamed || !validateName(newName, renamed.parentId, renamed.id)) return;
     const next = files.map((f) => (f.id === renameTarget.id ? { ...f, name: newName } : f));
     persistFiles(next);
     setRenameTarget(null);

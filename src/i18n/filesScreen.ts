@@ -16,7 +16,9 @@ export const filesScreen = {
     files_new_folder_placeholder: 'مثال: components',
     files_rename_title: 'إعادة تسمية',
     files_rename_placeholder: 'الاسم الجديد',
-
+    files_name_invalid: 'الاسم مش صالح: مينفعش يكون فاضي أو فيه / أو \\ أو أطول من 100 حرف',
+    files_name_exists: 'فيه ملف أو مجلد بنفس الاسم هنا',
+    
     // استيراد ملف
     files_import_warning_title: 'تحذير',
     files_import_content_error: 'اتضاف الملف للقايمة لكن حصلت مشكلة في قراءة محتواه: ',
@@ -76,7 +78,9 @@ export const filesScreen = {
     files_new_folder_placeholder: 'e.g. components',
     files_rename_title: 'Rename',
     files_rename_placeholder: 'New name',
-
+    
+    files_name_invalid: "Invalid name: it can't be empty, contain / or \\, or exceed 100 characters",
+    files_name_exists: 'A file or folder with this name already exists here',
     files_import_warning_title: 'Warning',
     files_import_content_error: 'File added to the list, but there was a problem reading its content: ',
     files_import_error: 'A problem occurred while importing the file',
