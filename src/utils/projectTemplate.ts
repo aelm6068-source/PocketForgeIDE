@@ -173,7 +173,7 @@ import { t } from './src/locales/i18n';
 export default function App() {
   return (
     <View style={styles.container}>
-      <Text style={{ color: colors.text }}>{t('welcome', 'ar')} ${projectName}!</Text>
+            <Text style={{ color: colors.text }}>{t('welcome', 'ar')} {${JSON.stringify(projectName)}}!</Text>
       <StatusBar style="auto" />
     </View>
   );
