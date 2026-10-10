@@ -267,4 +267,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontFamily: fonts.uiSemibold,
   },
-});ط
+});
