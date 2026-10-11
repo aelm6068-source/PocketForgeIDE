@@ -7,11 +7,13 @@ export const appDrawer = {
     drawer_preview: 'معاينة',
     drawer_open_in_expo_go: 'فتح في Expo Go',
     drawer_cleanup_server: 'مسح وتنظيف السيرفر',
+    drawer_terminal: 'الطرفية',
   },
   en: {
     drawer_files: 'Files',
     drawer_preview: 'Preview',
     drawer_open_in_expo_go: 'Open in Expo Go',
     drawer_cleanup_server: 'Clean Up Server',
+    drawer_terminal: 'Terminal',
   },
 };

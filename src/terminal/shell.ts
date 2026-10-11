@@ -56,6 +56,7 @@ export class Shell implements ShellApi {
     try {
       const statements = parse(tokenize(trimmed));
       await this.fs.refresh();
+            if (this.fs.stat(this.cwd)?.type !== 'folder') this.cwd = '/';
       for (const st of statements) {
         if (st.joiner === '&&' && code !== 0) continue;
         code = await this.runPipeline(st.pipeline, emit);
