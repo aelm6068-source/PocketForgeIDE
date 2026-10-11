@@ -13,6 +13,7 @@ import { runSandbox } from './runSandbox';
 import { editor } from './editor';
 import { preview } from './preview';
 import { daytona } from './daytona';
+import { terminal } from './terminal';
 
 export const translations = {
  ar: {
@@ -25,6 +26,7 @@ export const translations = {
     ...editor.ar,
     ...preview.ar,
     ...daytona.ar,
+    ...terminal.ar,
   },
   en: {
     ...common.en,
@@ -36,6 +38,7 @@ export const translations = {
     ...editor.en,
     ...preview.en,
     ...daytona.en,
+    ...terminal.en,
   }, 
 } as const;
 
