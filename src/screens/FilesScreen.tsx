@@ -16,6 +16,7 @@ import ActionModal from '../components/ActionModal';
 import FileActionMenu, { FileActionTarget } from '../components/FileActionMenu';
 import AppDrawer from '../components/AppDrawer';
 import PreviewPanel from '../components/preview/PreviewPanel';
+import TerminalPanel from '../components/terminal/TerminalPanel';
 import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, deleteFileContent, touchProject, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
 import * as SecureStore from 'expo-secure-store';
 import { createSandbox, uploadProjectFiles, runExpoTunnel, RunProgressStage, deleteSandbox, listSandboxes } from '../utils/daytonaClient';
@@ -36,6 +37,11 @@ export default function FilesScreen({ route, navigation }: any) {
   const { t } = useLanguage();
   const { projectId, projectName, language } = route.params;
   const [drawerOpen, setDrawerOpen] = useState(false);
+    // الطرفية بتفضل شغالة في الخلفية بعد أول فتح (عشان السجل والمسار الحالي ما يضيعوش لما تبدّل بين العناصر)
+  const [terminalOpened, setTerminalOpened] = useState(false);
+  useEffect(() => {
+    if (activeItem === 'terminal') setTerminalOpened(true);
+  }, [activeItem]);
   const [activeItem, setActiveItem] = useState('files');
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [fileModalVisible, setFileModalVisible] = useState(false);
@@ -458,10 +464,15 @@ export default function FilesScreen({ route, navigation }: any) {
           <Ionicons name="menu" size={20} color={colors.text} />
         </TouchableOpacity>
       </View>
-
+      {terminalOpened && (
+        <View style={{ flex: 1, display: activeItem === 'terminal' ? 'flex' : 'none' }}>
+          <TerminalPanel projectId={projectId} />
+        </View>
+      )}
+      
       {activeItem === 'preview' ? (
         <PreviewPanel projectId={projectId} files={files} />
-      ) : (
+            ) : activeItem === 'terminal' ? null : (
       <View style={styles.fileTree}>
         <View style={styles.ftActions}>
           <TouchableOpacity style={styles.ftBtn} onPress={() => setFileModalVisible(true)}>

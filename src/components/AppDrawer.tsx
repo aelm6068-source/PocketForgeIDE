@@ -43,7 +43,7 @@ export default function AppDrawer({
   // "Shell" و"AI" أسماء إنجليزية ثابتة مش محتاجة ترجمة
   const drawerItems = [
     { key: 'files', label: t('drawer_files'), icon: 'folder-outline' },
-    { key: 'shell', label: 'Shell', icon: 'terminal-outline' },
+        { key: 'terminal', label: t('drawer_terminal'), icon: 'terminal-outline' },
     { key: 'preview', label: t('drawer_preview'), icon: 'play-outline' },
     { key: 'ai', label: 'AI', icon: 'sparkles-outline' },
   ];
