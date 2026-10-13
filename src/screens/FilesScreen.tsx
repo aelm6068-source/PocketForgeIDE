@@ -37,12 +37,12 @@ export default function FilesScreen({ route, navigation }: any) {
   const { t } = useLanguage();
   const { projectId, projectName, language } = route.params;
   const [drawerOpen, setDrawerOpen] = useState(false);
-    // الطرفية بتفضل شغالة في الخلفية بعد أول فتح (عشان السجل والمسار الحالي ما يضيعوش لما تبدّل بين العناصر)
+  const [activeItem, setActiveItem] = useState('files');
+    // الطرفية بتفضل شغالة في الخلفية بعد أول فتح عشان تحافظ على السجل
   const [terminalOpened, setTerminalOpened] = useState(false);
   useEffect(() => {
     if (activeItem === 'terminal') setTerminalOpened(true);
   }, [activeItem]);
-  const [activeItem, setActiveItem] = useState('files');
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [fileModalVisible, setFileModalVisible] = useState(false);
   const [folderModalVisible, setFolderModalVisible] = useState(false);
