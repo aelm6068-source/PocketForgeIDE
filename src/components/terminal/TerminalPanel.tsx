@@ -23,6 +23,7 @@ import { VirtualFs } from '../../terminal/vfs';
 import { createProjectStore } from '../../terminal/projectStore';
 import type { Tr } from '../../terminal/types';
 import { TERMINAL_HTML } from './terminalHtml';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Entry = { k: 'cmd' | 'out' | 'err' | 'info'; t: string; p?: string };
 
@@ -197,12 +198,14 @@ export default function TerminalPanel({ projectId }: { projectId: string }) {
       .join('\n');
     copyText(text);
   }, [copyText]);
-   const rootRef = useRef<View>(null);
+     const rootRef = useRef<View>(null);
+  const insets = useSafeAreaInsets();
   const [kbPad, setKbPad] = useState(0);
   useEffect(() => {
     const measure = (screenY: number) => {
       rootRef.current?.measureInWindow((_x, y, _w, h) => {
-        setKbPad(Math.max(0, Math.round(y + h - screenY)));
+        const overlap = Math.round(y + h - screenY);
+        setKbPad(overlap > 0 ? overlap + insets.bottom : 0);
       });
     };
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
@@ -214,7 +217,7 @@ export default function TerminalPanel({ projectId }: { projectId: string }) {
       show.remove();
       hide.remove();
     };
-  }, []);
+  }, [insets.bottom]);
   return (
         <View ref={rootRef} style={[styles.container, { paddingBottom: kbPad }]}>
       {/* شريط الأدوات */}
