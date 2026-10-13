@@ -34,7 +34,11 @@ export function tokenize(line: string): Token[] {
   let i = 0;
   while (i < line.length) {
     const c = line[i];
-    if (c === ' ' || c === '\t' || c === '\n') {
+        if (c === '\n') {
+      push();
+      tokens.push({ kind: 'op', value: ';' });
+      i++;
+    } else if (c === ' ' || c === '\t' || c === '\r') {
       push();
       i++;
     } else if (c === '\\') {

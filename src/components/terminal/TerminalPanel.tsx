@@ -9,7 +9,7 @@ import {
   TouchableOpacity,
   ScrollView,
   StyleSheet,
-  KeyboardAvoidingView,
+  Keyboard,
 } from 'react-native';
 import { WebView } from 'react-native-webview';
 import * as Clipboard from 'expo-clipboard';
@@ -197,9 +197,26 @@ export default function TerminalPanel({ projectId }: { projectId: string }) {
       .join('\n');
     copyText(text);
   }, [copyText]);
-
+   const rootRef = useRef<View>(null);
+  const [kbPad, setKbPad] = useState(0);
+  useEffect(() => {
+    const measure = (screenY: number) => {
+      rootRef.current?.measureInWindow((_x, y, _w, h) => {
+        setKbPad(Math.max(0, Math.round(y + h - screenY)));
+      });
+    };
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      measure(e.endCoordinates.screenY);
+      setTimeout(() => measure(e.endCoordinates.screenY), 150);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbPad(0));
+    return () => {
+      show.remove();
+      hide.remove();
+    };
+  }, []);
   return (
-    <KeyboardAvoidingView style={styles.container} behavior="padding">
+        <View ref={rootRef} style={[styles.container, { paddingBottom: kbPad }]}>
       {/* شريط الأدوات */}
       <View style={styles.toolbar}>
         <TouchableOpacity style={styles.toolBtn} onPress={copyLast} activeOpacity={0.7}>
@@ -293,7 +310,7 @@ export default function TerminalPanel({ projectId }: { projectId: string }) {
           <Ionicons name="return-down-forward" size={18} color="white" />
         </TouchableOpacity>
       </View>
-    </KeyboardAvoidingView>
+        </View>
   );
 }
 
