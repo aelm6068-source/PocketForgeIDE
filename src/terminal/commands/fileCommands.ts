@@ -5,13 +5,13 @@ import type { CmdCtx, Command } from '../types';
 import { joinPath } from '../paths';
 
 // ---------- أدوات مساعدة ----------
-interface Parsed {
+export interface Parsed {
   flags: Set<string>;
   values: Record<string, string>;
   rest: string[];
 }
 
-function opts(ctx: CmdCtx, cmd: string, bools: string, valued = ''): Parsed | null {
+export function opts(ctx: CmdCtx, cmd: string, bools: string, valued = ''): Parsed | null {
   const flags = new Set<string>();
   const values: Record<string, string> = {};
   const rest: string[] = [];
@@ -56,20 +56,20 @@ function opts(ctx: CmdCtx, cmd: string, bools: string, valued = ''): Parsed | nu
   return { flags, values, rest };
 }
 
-function report(ctx: CmdCtx, cmd: string, arg: string, e: unknown): void {
+export function report(ctx: CmdCtx, cmd: string, arg: string, e: unknown): void {
   if (!(e instanceof FsError)) throw e;
   const shown = e.path === ctx.resolve(arg) ? arg : e.path;
   ctx.err(`${cmd}: ${ctx.t('term_err_' + e.code, { path: shown })}\n`);
 }
 
-function splitLines(text: string): string[] {
+export function splitLines(text: string): string[] {
   if (!text) return [];
   const parts = text.split('\n');
   if (parts[parts.length - 1] === '') parts.pop();
   return parts;
 }
 
-async function readAll(
+export async function readAll(
   ctx: CmdCtx,
   cmd: string,
   paths: string[]
@@ -87,7 +87,7 @@ async function readAll(
   return { items, failed };
 }
 
-function parseCount(ctx: CmdCtx, cmd: string, raw: string | undefined, fallback: number): number | null {
+export function parseCount(ctx: CmdCtx, cmd: string, raw: string | undefined, fallback: number): number | null {
   if (raw === undefined) return fallback;
   if (!/^\d+$/.test(raw)) {
     ctx.err(ctx.t('term_invalid_number', { cmd, value: raw }) + '\n');

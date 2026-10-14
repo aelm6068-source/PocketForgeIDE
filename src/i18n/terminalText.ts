@@ -1,0 +1,28 @@
+// src/i18n/terminalText.ts
+// نصوص أوامر البحث والنصوص في الطرفية (grep find sort uniq cut)
+export const terminalText = {
+  ar: {
+    term_help_grep: 'يبحث عن نمط في الملفات أو الأنبوب (-i -v -n -c -l -r -F -w)',
+    term_help_find: 'يبحث عن ملفات (-name -iname -type f|d -maxdepth)',
+    term_help_sort: 'يرتب الأسطر (-r عكسي، -n أرقام، -u بدون تكرار)',
+    term_help_uniq: 'يزيل الأسطر المتتالية المكررة (-c عدّ، -d، -u)',
+    term_help_cut: 'يقص أجزاء من كل سطر (-d فاصل -f حقول، -c حروف)',
+    term_grep_missing_pattern: 'grep: ينقصه النمط المطلوب البحث عنه',
+    term_invalid_regex: '{cmd}: نمط غير صالح "{value}"',
+    term_find_bad_expr: 'find: تعبير غير مفهوم "{opt}"',
+    term_cut_missing_list: 'cut: حدد -f (حقول) أو -c (حروف)',
+    term_invalid_list: '{cmd}: قائمة غير صالحة "{value}"',
+  },
+  en: {
+    term_help_grep: 'search for a pattern in files or a pipe (-i -v -n -c -l -r -F -w)',
+    term_help_find: 'find files (-name -iname -type f|d -maxdepth)',
+    term_help_sort: 'sort lines (-r reverse, -n numeric, -u unique)',
+    term_help_uniq: 'remove adjacent duplicate lines (-c count, -d, -u)',
+    term_help_cut: 'cut parts of each line (-d delimiter -f fields, -c characters)',
+    term_grep_missing_pattern: 'grep: missing the pattern to search for',
+    term_invalid_regex: '{cmd}: invalid pattern "{value}"',
+    term_find_bad_expr: 'find: unknown expression "{opt}"',
+    term_cut_missing_list: 'cut: specify -f (fields) or -c (characters)',
+    term_invalid_list: '{cmd}: invalid list "{value}"',
+  },
+};

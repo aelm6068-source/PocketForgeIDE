@@ -1,6 +1,6 @@
 // المفسّر: يحوّل سطر الأوامر إلى تنفيذ ومخرجات
 
-import { COMMANDS } from './commands/fileCommands';
+import { ALL_COMMANDS as COMMANDS } from './commands/all';
 import { ParseError, parse, tokenize } from './parser';
 import type { Pipeline, WordToken } from './parser';
 import { baseName, parentPath, resolvePath } from './paths';
