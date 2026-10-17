@@ -1,0 +1,34 @@
+// src/i18n/terminalNode.ts
+// نصوص أمر node في الطرفية
+export const terminalNode = {
+  ar: {
+    term_help_node: 'يشغّل ملف جافاسكربت على الجهاز (node file.js، node -e "كود")',
+    term_node_usage: 'الاستخدام: node اسم_الملف.js [وسائط] — أو node -e "كود"',
+    term_node_missing_code: 'node: الخيار -e يحتاج كودًا بعده',
+    term_node_bad_option: 'node: خيار غير مدعوم {opt}',
+    term_node_unavailable: 'node: مشغّل الجافاسكربت غير متاح هنا',
+    term_node_not_found: 'node: الملف "{path}" غير موجود',
+    term_node_unreadable: 'node: تعذّرت قراءة الملف "{path}" (كبير جدًا أو ليس نصًا)',
+    term_node_esm: 'ملاحظة: صيغة import/export (ES modules) غير مدعومة حاليًا، استخدم require و module.exports',
+    term_node_npm: 'ملاحظة: الحزمة "{name}" غير موجودة. حزم npm غير مدعومة حاليًا، والمتاح: fs وpath وutil وevents وassert وos وtimers، وملفاتك النسبية (./file)',
+    term_node_truncated: 'تم اقتطاع المخرجات لأنها طويلة جدًا',
+    term_node_timeout: 'node: تم إيقاف البرنامج لأنه تجاوز {sec} ثانية',
+    term_node_stopped: 'node: تم إيقاف البرنامج',
+    term_node_crashed: 'node: توقف المشغّل بشكل غير متوقع',
+  },
+  en: {
+    term_help_node: 'run a JavaScript file on the device (node file.js, node -e "code")',
+    term_node_usage: 'usage: node file.js [args] — or node -e "code"',
+    term_node_missing_code: 'node: option -e needs code after it',
+    term_node_bad_option: 'node: unsupported option {opt}',
+    term_node_unavailable: 'node: the JavaScript runner is not available here',
+    term_node_not_found: 'node: file "{path}" not found',
+    term_node_unreadable: 'node: cannot read file "{path}" (too large or not text)',
+    term_node_esm: 'Note: import/export (ES modules) syntax is not supported yet, use require and module.exports',
+    term_node_npm: 'Note: package "{name}" was not found. npm packages are not supported yet. Available: fs, path, util, events, assert, os, timers, and your relative files (./file)',
+    term_node_truncated: 'Output was truncated because it was too long',
+    term_node_timeout: 'node: program stopped after exceeding {sec} seconds',
+    term_node_stopped: 'node: program stopped',
+    term_node_crashed: 'node: the runner stopped unexpectedly',
+  },
+};
