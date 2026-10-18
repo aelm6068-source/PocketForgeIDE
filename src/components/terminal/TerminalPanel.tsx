@@ -23,6 +23,7 @@ import { VirtualFs } from '../../terminal/vfs';
 import { createProjectStore } from '../../terminal/projectStore';
 import type { Tr } from '../../terminal/types';
 import { TERMINAL_HTML } from './terminalHtml';
+import { useJsRunner } from './useJsRunner';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Entry = { k: 'cmd' | 'out' | 'err' | 'info'; t: string; p?: string };
@@ -51,9 +52,11 @@ function toJs(value: unknown): string {
 export default function TerminalPanel({ projectId }: { projectId: string }) {
   const { t } = useLanguage();
 
+    const js = useJsRunner();
+
   const shell = useMemo(
-    () => new Shell(new VirtualFs(createProjectStore(projectId)), tr),
-    [projectId]
+    () => new Shell(new VirtualFs(createProjectStore(projectId)), tr, '/', js.runner),
+    [projectId, js.runner]
   );
 
   const webRef = useRef<WebView>(null);
@@ -307,14 +310,15 @@ export default function TerminalPanel({ projectId }: { projectId: string }) {
           returnKeyType="send"
           blurOnSubmit={false}
         />
-        <TouchableOpacity
-          style={[styles.sendBtn, busy && { opacity: 0.5 }]}
-          onPress={() => submit(input)}
+                <TouchableOpacity
+          style={[styles.sendBtn, busy && { backgroundColor: colors.error }]}
+          onPress={() => (busy ? js.stop() : submit(input))}
           activeOpacity={0.7}
         >
-          <Ionicons name="return-down-forward" size={18} color="white" />
+          <Ionicons name={busy ? 'stop' : 'return-down-forward'} size={18} color="white" />
         </TouchableOpacity>
       </View>
+       {js.element}   
         </View>
   );
 }

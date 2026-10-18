@@ -15,6 +15,7 @@ import { preview } from './preview';
 import { daytona } from './daytona';
 import { terminal } from './terminal';
 import { terminalText } from './terminalText';
+import { terminalNode } from './terminalNode';
 
 export const translations = {
  ar: {
@@ -28,7 +29,8 @@ export const translations = {
     ...preview.ar,
     ...daytona.ar,
     ...terminal.ar,
-    ...terminalText.ar,
+    ...terminalText.ar
+    ...terminalNode.ar,
   },
   en: {
     ...common.en,
@@ -42,6 +44,7 @@ export const translations = {
     ...daytona.en,
     ...terminal.en,
     ...terminalText.en,
+    ...terminalNode.en,
   }, 
 } as const;
 

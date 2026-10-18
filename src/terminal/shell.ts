@@ -5,7 +5,7 @@ import { ParseError, parse, tokenize } from './parser';
 import type { Pipeline, WordToken } from './parser';
 import { baseName, parentPath, resolvePath } from './paths';
 import { FsError } from './types';
-import type { CmdCtx, OutputLine, RunResult, ShellApi, Tr } from './types';
+import type { CmdCtx, JsRunner, OutputLine, RunResult, ShellApi, Tr } from './types';
 import type { VirtualFs } from './vfs';
 
 const MAX_HISTORY = 200;
@@ -18,7 +18,7 @@ export class Shell implements ShellApi {
   lastCode = 0;
   private clearFlag = false;
 
-  constructor(private fs: VirtualFs, private t: Tr, cwd = '/') {
+    constructor(private fs: VirtualFs, private t: Tr, cwd = '/', private js?: JsRunner) {
     this.cwd = cwd;
   }
 
@@ -96,6 +96,7 @@ export class Shell implements ShellApi {
           const ctx: CmdCtx = {
             args: args.slice(1),
             stdin,
+             js: this.js,
             fs: this.fs,
             shell: this,
             t: this.t,
