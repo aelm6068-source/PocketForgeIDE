@@ -63,7 +63,41 @@ export interface ShellApi {
   clearHistory(): void;
 }
 
+/** مدخلات تشغيل ملف جافاسكربت (النواة لا تعرف كيف يُنفَّذ، فقط هذه الواجهة). */
+export interface JsRunInput {
+  code: string;
+  filename: string;
+  isEval: boolean;
+  cwd: string;
+  args: string[];
+  /** لقطة نصية من ملفات المشروع: المسار الكامل -> المحتوى */
+  files: Record<string, string>;
+  /** ملفات موجودة لكن غير متاحة للقراءة (صور أو ضخمة) */
+  skipped: string[];
+  dirs: string[];
+  timeoutMs: number;
+}
+
+export interface JsRunHandlers {
+  out(text: string): void;
+  err(text: string): void;
+  diag(code: string, arg?: string): void;
+}
+
+export interface JsRunResult {
+  status: 'ok' | 'timeout' | 'stopped' | 'crashed';
+  code: number;
+  writes: Record<string, string>;
+  removes: string[];
+  mkdirs: string[];
+}
+
+export interface JsRunner {
+  run(input: JsRunInput, handlers: JsRunHandlers): Promise<JsRunResult>;
+}
+
 export interface CmdCtx {
+    js?: JsRunner;
   args: string[];
   stdin: string | null;
   fs: import('./vfs').VirtualFs;
