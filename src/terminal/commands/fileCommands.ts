@@ -3,8 +3,16 @@
 import { FsError } from '../types';
 import type { CmdCtx, Command } from '../types';
 import { joinPath } from '../paths';
+import { isImageName } from '../net';
 
 // ---------- أدوات مساعدة ----------
+/** الحجم الحقيقي بالبايت: الصور مخزّنة كنص base64 فنحسب حجمها الأصلي */
+export function byteSize(path: string, text: string): number {
+  if (!isImageName(path)) return text.length;
+  const pad = text.endsWith('==') ? 2 : text.endsWith('=') ? 1 : 0;
+  return Math.max(0, Math.floor((text.length * 3) / 4) - pad);
+}
+
 export interface Parsed {
   flags: Set<string>;
   values: Record<string, string>;
@@ -129,7 +137,10 @@ const ls: Command = async (ctx) => {
     const label = name + (type === 'folder' ? '/' : '');
     if (!long) return label;
     let size = '-';
-    if (type === 'file') size = String((await ctx.fs.readFile(joinPath(dirAbs, name))).length);
+        if (type === 'file') {
+      const full = joinPath(dirAbs, name);
+      size = String(byteSize(full, await ctx.fs.readFile(full)));
+        }
     return `${type === 'folder' ? 'd' : '-'} ${size.padStart(7)} ${label}`;
   };
 
@@ -174,7 +185,14 @@ const cat: Command = async (ctx) => {
   let code = 0;
   for (const p of o.rest) {
     try {
-      emit(await ctx.fs.readFile(ctx.resolve(p)));
+            const abs = ctx.resolve(p);
+      const text = await ctx.fs.readFile(abs);
+      if (isImageName(abs)) {
+        ctx.err(ctx.t('term_cat_image', { path: p, bytes: byteSize(abs, text) }) + '\n');
+        code = 1;
+        continue;
+      }
+      emit(text);
     } catch (e) {
       report(ctx, 'cat', p, e);
       code = 1;
@@ -197,6 +215,7 @@ const echo: Command = async (ctx) => {
   ctx.out(text + (newline ? '\n' : ''));
   return 0;
 };
+
 const mkdir: Command = async (ctx) => {
   const o = opts(ctx, 'mkdir', 'p');
   if (!o) return 2;
@@ -325,10 +344,10 @@ const wc: Command = async (ctx) => {
   const showL = !any || o.flags.has('l');
   const showW = !any || o.flags.has('w');
   const showC = !any || o.flags.has('c');
-  const count = (text: string) => ({
+    const count = (text: string, name = '') => ({
     l: (text.match(/\n/g) ?? []).length,
     w: text.split(/\s+/).filter(Boolean).length,
-    c: text.length,
+        c: name ? byteSize(name, text) : text.length,
   });
   const row = (c: { l: number; w: number; c: number }, label: string): string =>
     [showL ? c.l : null, showW ? c.w : null, showC ? c.c : null]
@@ -342,7 +361,7 @@ const wc: Command = async (ctx) => {
   const { items, failed } = await readAll(ctx, 'wc', o.rest);
   const total = { l: 0, w: 0, c: 0 };
   for (const it of items) {
-    const c = count(it.text);
+        const c = count(it.text, it.label);
     total.l += c.l;
     total.w += c.w;
     total.c += c.c;

@@ -123,15 +123,30 @@ export default function TerminalPanel({ projectId }: { projectId: string }) {
       histIdxRef.current = -1;
       push([{ k: 'cmd', p: `${shell.cwd} $`, t: line }]);
       setBusy(true);
-      try {
-        const res = await shell.run(line);
-        if (res.clear) {
-          clearAll();
-        } else {
-          push(res.lines.map((l) => ({ k: l.kind, t: l.text })));
+            // المخرجات بتظهر لحظة بلحظة (بتتجمّع كل 60ms عشان ما نحقنش الـ WebView سطر سطر)
+      let buf: Entry[] = [];
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      const flush = () => {
+        if (timer) {
+          clearTimeout(timer);
+          timer = null;
         }
+        if (buf.length) {
+          const batch = buf;
+          buf = [];
+          push(batch);
+        }
+      };
+      try {
+        const res = await shell.run(line, (l) => {
+          buf.push({ k: l.kind, t: l.text });
+          if (!timer) timer = setTimeout(flush, 60);
+        });
+        flush();
+        if (res.clear) clearAll();
         setCwd(shell.cwd);
       } catch (err: any) {
+        flush();
         push([{ k: 'err', t: String(err?.message ?? err) }]);
       } finally {
         setBusy(false);

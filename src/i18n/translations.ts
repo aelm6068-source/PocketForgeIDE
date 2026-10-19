@@ -29,7 +29,7 @@ export const translations = {
     ...preview.ar,
     ...daytona.ar,
     ...terminal.ar,
-    ...terminalText.ar
+    ...terminalText.ar,
     ...terminalNode.ar,
   },
   en: {

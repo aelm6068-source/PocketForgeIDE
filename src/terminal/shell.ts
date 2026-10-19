@@ -35,13 +35,18 @@ export class Shell implements ShellApi {
     return resolvePath(this.cwd, p);
   }
 
-  async run(line: string): Promise<RunResult> {
+    /** onLine (اختياري): بيتنادى بكل سطر مخرجات لحظة ظهوره، للعرض الحي أثناء التنفيذ. */
+  async run(line: string, onLine?: (l: OutputLine) => void): Promise<RunResult> {
     const lines: OutputLine[] = [];
     const emit: Emit = (kind, text) => {
       if (!text) return;
       const parts = text.split('\n');
       if (parts[parts.length - 1] === '') parts.pop();
-      for (const p of parts) lines.push({ kind, text: p });
+            for (const p of parts) {
+        const item: OutputLine = { kind, text: p };
+        lines.push(item);
+        onLine?.(item);
+            }
     };
     this.clearFlag = false;
     const trimmed = line.trim();

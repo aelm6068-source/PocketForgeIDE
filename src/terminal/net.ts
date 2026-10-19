@@ -118,6 +118,15 @@ export function fileNameFromUrl(url: string): string {
   name = name.replace(/[\\/]/g, '_').trim();
   return name || 'index.html';
 }
+/** يختصر رسالة خطأ الشبكة (أندرويد بيرجع نص Java طويل) لسطر واحد قصير */
+export function shortDetail(e: unknown): string {
+  const raw = e instanceof Error ? e.message : String(e);
+  let first = raw.split('\n')[0].trim();
+  const cut = first.indexOf(' at ');
+  if (cut > 0) first = first.slice(0, cut).trim();
+  first = first.replace(/^(java|javax|android)\.[\w.$]+:\s*/, '');
+  return first.length > 70 ? first.slice(0, 67) + '...' : first;
+}
 
 export class NetError extends Error {
   kind: 'offline' | 'timeout' | 'too_large';
@@ -161,7 +170,7 @@ export async function request(url: string, init: NetInit = {}, timeoutMs = DEFAU
   } catch (e) {
     if (e instanceof NetError) throw e;
     if (timedOut) throw new NetError('timeout');
-    throw new NetError('offline', e instanceof Error ? e.message : String(e));
+        throw new NetError('offline', shortDetail(e));
   } finally {
     g.clearTimeout(timer);
   }

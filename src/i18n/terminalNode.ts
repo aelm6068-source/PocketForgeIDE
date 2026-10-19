@@ -15,6 +15,7 @@ export const terminalNode = {
     term_node_timeout: 'node: تم إيقاف البرنامج لأنه تجاوز {sec} ثانية',
     term_node_stopped: 'node: تم إيقاف البرنامج',
     term_node_crashed: 'node: توقف المشغّل بشكل غير متوقع',
+        term_cat_image: 'cat: {path}: ملف صورة ({bytes} بايت) لا يمكن عرضه كنص',
   },
   en: {
     term_help_node: 'run a JavaScript file on the device (node file.js, node -e "code")',
@@ -30,5 +31,6 @@ export const terminalNode = {
     term_node_timeout: 'node: program stopped after exceeding {sec} seconds',
     term_node_stopped: 'node: program stopped',
     term_node_crashed: 'node: the runner stopped unexpectedly',
+        term_cat_image: 'cat: {path}: image file ({bytes} bytes), cannot be shown as text',
   },
 };
