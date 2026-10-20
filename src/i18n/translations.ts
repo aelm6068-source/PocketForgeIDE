@@ -16,6 +16,7 @@ import { daytona } from './daytona';
 import { terminal } from './terminal';
 import { terminalText } from './terminalText';
 import { terminalNode } from './terminalNode';
+import { github } from './github';
 
 export const translations = {
  ar: {
@@ -31,6 +32,7 @@ export const translations = {
     ...terminal.ar,
     ...terminalText.ar,
     ...terminalNode.ar,
+    ...github.ar,
   },
   en: {
     ...common.en,
@@ -45,6 +47,7 @@ export const translations = {
     ...terminal.en,
     ...terminalText.en,
     ...terminalNode.en,
+    ...github.en,
   }, 
 } as const;
 

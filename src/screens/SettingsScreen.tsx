@@ -15,6 +15,7 @@ import { colors, fonts, spacing, radius } from '../theme/colors';
 import { testDaytonaConnection } from '../utils/daytonaClient';
 import { useLanguage } from '../i18n/LanguageContext';
 import LanguageCard from '../components/LanguageCard';
+import GithubCard from '../components/GithubCard';
 
 type Provider = 'e2b' | 'daytona';
 
@@ -165,6 +166,7 @@ export default function SettingsScreen() {
       <Text style={styles.subtitle}>{t('settings_subtitle')}</Text>
 
       <LanguageCard />
+            <GithubCard />
 
       {/* كارت E2B */}
       <ProviderCard
