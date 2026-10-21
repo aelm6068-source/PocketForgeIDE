@@ -166,7 +166,7 @@ export default function SettingsScreen() {
       <Text style={styles.subtitle}>{t('settings_subtitle')}</Text>
 
       <LanguageCard />
-            <GithubCard />
+      <GithubCard />
 
       {/* كارت E2B */}
       <ProviderCard
