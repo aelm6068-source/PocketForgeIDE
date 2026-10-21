@@ -23,6 +23,8 @@ type AppDrawerProps = {
   onRunPress: () => void;
   // ⭐ الجديد: زرار مسح وتنظيف سيرفر المشروع (Daytona Sandbox)
   onCleanupPress: () => void;
+    // ⭐ زرار رفع المشروع إلى GitHub
+  onGithubPress: () => void;
 };
 
 export default function AppDrawer({
@@ -32,6 +34,7 @@ export default function AppDrawer({
   onSelectItem,
   onRunPress,
   onCleanupPress,
+  onGithubPress,
 }: AppDrawerProps) {
   const { t } = useLanguage();
 
@@ -120,6 +123,18 @@ export default function AppDrawer({
           <Text style={[styles.drawerLabel, { color: colors.accent }]}>{t('drawer_open_in_expo_go')}</Text>
         </TouchableOpacity>
 
+                {/* ⭐ زرار رفع المشروع إلى GitHub */}
+        <TouchableOpacity
+          style={styles.drawerItem}
+          onPress={() => {
+            onGithubPress();
+            onClose();
+          }}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="logo-github" size={22} color={colors.text} />
+          <Text style={[styles.drawerLabel, { color: colors.text }]}>{t('drawer_github')}</Text>
+        </TouchableOpacity>
         {/* ⭐ الجديد: زرار مسح وتنظيف سيرفر المشروع */}
         <TouchableOpacity
           style={styles.drawerItem}

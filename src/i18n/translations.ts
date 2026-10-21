@@ -17,6 +17,7 @@ import { terminal } from './terminal';
 import { terminalText } from './terminalText';
 import { terminalNode } from './terminalNode';
 import { github } from './github';
+import { githubPublish } from './githubPublish';
 
 export const translations = {
  ar: {
@@ -33,6 +34,7 @@ export const translations = {
     ...terminalText.ar,
     ...terminalNode.ar,
     ...github.ar,
+    ...githubPublish.ar,
   },
   en: {
     ...common.en,
@@ -48,6 +50,7 @@ export const translations = {
     ...terminalText.en,
     ...terminalNode.en,
     ...github.en,
+    ...githubPublish.en,
   }, 
 } as const;
 
