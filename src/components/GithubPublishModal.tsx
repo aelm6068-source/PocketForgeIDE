@@ -21,6 +21,7 @@ import { useLanguage } from '../i18n/LanguageContext';
 import { translate } from '../i18n/translate';
 import type { TranslationKey } from '../i18n/translations';
 import { usePublish } from '../github/usePublish';
+import GithubSyncPanel from './GithubSyncPanel';
 
 interface Props {
   visible: boolean;
@@ -95,15 +96,7 @@ export default function GithubPublishModal({ visible, projectId, projectName, on
             )}
 
             {ui.kind === 'linked' && (
-              <>
-                <Text style={styles.body}>{t('ghp_linked_title')}</Text>
-                <Text style={styles.repo}>{`${ui.link.owner}/${ui.link.repo}`}</Text>
-                <Text style={styles.muted}>{t('ghp_linked_hint')}</Text>
-                <TouchableOpacity style={styles.primaryBtn} onPress={() => openUrl(ui.link.htmlUrl)} activeOpacity={0.8}>
-                  <Text style={styles.primaryText}>{t('ghp_open_github')}</Text>
-                </TouchableOpacity>
-                {closeBtn}
-              </>
+              <GithubSyncPanel visible={visible} projectId={projectId} link={ui.link} onClose={onClose} />
             )}
 
             {ui.kind === 'form' && snapshot && (

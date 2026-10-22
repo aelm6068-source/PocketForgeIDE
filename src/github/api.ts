@@ -12,6 +12,7 @@ export type ApiErrorCode =
   | 'validation'
   | 'rate_limit'
   | 'empty_repo'
+  | 'diverged'
   | 'unknown';
 
 export class GithubApiError extends Error {
@@ -49,6 +50,7 @@ function mapError(status: number, body: ErrorBody, remaining: string | null): Gi
   }
   if (status === 404) return new GithubApiError('not_found', status, message);
   if (status === 409 && /empty/i.test(message)) return new GithubApiError('empty_repo', status, message);
+    if (status === 422 && /fast.forward/i.test(message)) return new GithubApiError('diverged', status, message);
   if (status === 422) {
     const taken = (body.errors ?? []).some((e) => /already exists/i.test(e.message ?? ''));
     return new GithubApiError(taken ? 'name_taken' : 'validation', status, message);
@@ -217,4 +219,41 @@ export async function updateBranch(
     sha,
     force: false,
   });
+}
+// tree الـ commit (بنبني فوقه tree جديد من غير ما نعيد رفع الملفات الباقية)
+export async function getCommitTreeSha(
+  ctx: GhCtx,
+  owner: string,
+  repo: string,
+  commitSha: string
+): Promise<string> {
+  const res = await request<{ tree?: { sha?: string } }>(
+    ctx,
+    'GET',
+    `/repos/${owner}/${repo}/git/commits/${commitSha}`
+  );
+  const sha = res.tree?.sha;
+  if (!sha) throw new GithubApiError('unknown', 0, 'bad commit response');
+  return sha;
+}
+
+// sha = null يعني "احذف الملف ده"
+export interface TreeChange {
+  path: string;
+  sha: string | null;
+}
+
+export async function createTreeOnBase(
+  ctx: GhCtx,
+  owner: string,
+  repo: string,
+  baseTree: string,
+  changes: TreeChange[]
+): Promise<string> {
+  const res = await request<{ sha?: string }>(ctx, 'POST', `/repos/${owner}/${repo}/git/trees`, {
+    base_tree: baseTree,
+    tree: changes.map((c) => ({ path: c.path, mode: '100644', type: 'blob', sha: c.sha })),
+  });
+  if (!res.sha) throw new GithubApiError('unknown', 0, 'bad tree response');
+  return res.sha;
 }

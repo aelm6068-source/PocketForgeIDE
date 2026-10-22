@@ -1,0 +1,43 @@
+// src/i18n/githubSync.ts
+// نصوص لوحة تحديث المستودع (GithubSyncPanel.tsx). ghp_err_diverged بيتستخدم كمان
+// في نافذة الرفع الأول (GithubPublishModal.tsx) لأن ApiErrorCode بقى فيه 'diverged'.
+export const githubSync = {
+  ar: {
+    ghs_repo_label: 'المستودع',
+    ghs_checking: 'جاري فحص التغييرات...',
+    ghs_clean: 'كل شيء محدّث: مفيش تغييرات جديدة تترفع.',
+    ghs_summary: 'جديد {added} · معدّل {modified} · محذوف {deleted}',
+    ghs_more: 'و {count} ملف تاني',
+    ghs_message_label: 'رسالة التحديث (commit)',
+    ghs_push: 'رفع التغييرات',
+    ghs_pushing_check: 'جاري التأكد من حالة GitHub...',
+    ghs_pushing_files: 'جاري رفع الملفات {done}/{total}',
+    ghs_pushing_commit: 'جاري تثبيت التغييرات...',
+    ghs_pushed: 'اترفعت التغييرات بنجاح',
+    ghs_remote_ahead: 'GitHub فيه تغييرات أحدث من اللي عندك، فالرفع متوقف عشان ميكتبش فوقها. سحب التغييرات هيتضاف في الخطوة الجاية.',
+    ghs_open_github: 'فتح على GitHub',
+    ghs_retry: 'إعادة المحاولة',
+    ghs_close: 'إغلاق',
+    ghs_open_error: 'مش قادر أفتح الرابط دلوقتي',
+    ghp_err_diverged: 'GitHub فيه تغييرات أحدث من اللي عندك. الرفع اتوقف عشان ميكتبش فوقها.',
+  },
+  en: {
+    ghs_repo_label: 'Repository',
+    ghs_checking: 'Checking for changes...',
+    ghs_clean: 'Everything is up to date: no new changes to upload.',
+    ghs_summary: 'New {added} · Modified {modified} · Deleted {deleted}',
+    ghs_more: 'and {count} more file(s)',
+    ghs_message_label: 'Update message (commit)',
+    ghs_push: 'Upload changes',
+    ghs_pushing_check: 'Checking the state of GitHub...',
+    ghs_pushing_files: 'Uploading files {done}/{total}',
+    ghs_pushing_commit: 'Saving the changes...',
+    ghs_pushed: 'Changes uploaded successfully',
+    ghs_remote_ahead: 'GitHub has newer changes than yours, so uploading is paused to avoid overwriting them. Pulling changes comes in the next step.',
+    ghs_open_github: 'Open on GitHub',
+    ghs_retry: 'Try again',
+    ghs_close: 'Close',
+    ghs_open_error: 'Could not open the link right now',
+    ghp_err_diverged: 'GitHub has newer changes than yours. The upload was stopped to avoid overwriting them.',
+  },
+};
