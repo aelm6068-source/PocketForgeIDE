@@ -19,6 +19,7 @@ import { terminalNode } from './terminalNode';
 import { github } from './github';
 import { githubPublish } from './githubPublish';
 import { githubSync } from './githubSync';
+import { githubPull } from './githubPull';
 
 export const translations = {
  ar: {
@@ -37,6 +38,7 @@ export const translations = {
     ...github.ar,
     ...githubPublish.ar,
     ...githubSync.ar, 
+    ...githubPull.ar,
   },
   en: {
     ...common.en,
@@ -54,6 +56,7 @@ export const translations = {
     ...github.en,
     ...githubPublish.en,
     ...githubSync.en,
+    ...githubPull.en,
   }, 
 } as const;
 

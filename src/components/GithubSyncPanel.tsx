@@ -18,6 +18,8 @@ import { translate } from '../i18n/translate';
 import type { TranslationKey } from '../i18n/translations';
 import type { GithubLink } from '../github/linkStore';
 import { useGithubSync } from '../github/useGithubSync';
+import { useGithubPull } from '../github/useGithubPull';
+import GithubPullView from './GithubPullView';
 
 interface Props {
   visible: boolean;
@@ -32,11 +34,12 @@ type Row = { mark: '+' | '~' | '-'; path: string };
 
 export default function GithubSyncPanel({ visible, projectId, link: initialLink, onClose }: Props) {
   const { t } = useLanguage();
-  const { ui, link, changes, message, setMessage, remoteAhead, push, reload } = useGithubSync(
+    const { ui, link, changes, message, setMessage, remoteAhead, push, reload, adopt } = useGithubSync(
     visible,
     projectId,
     initialLink
   );
+   const pull = useGithubPull(visible, projectId, link, adopt); 
 
   const openRepo = () => {
     Linking.openURL(link.htmlUrl).catch(() => Alert.alert(t('common_error'), t('ghs_open_error')));
@@ -67,6 +70,15 @@ export default function GithubSyncPanel({ visible, projectId, link: initialLink,
   const markColor = (m: Row['mark']): string =>
     m === '+' ? colors.success : m === '~' ? colors.warning : colors.error;
 
+    if (pull.ui.kind !== 'idle') {
+    return (
+      <>
+        <Text style={styles.label}>{t('ghs_repo_label')}</Text>
+        <Text style={styles.repo}>{`${link.owner}/${link.repo}`}</Text>
+        <GithubPullView pull={pull} />
+      </>
+    );
+    }
   return (
     <>
       <Text style={styles.label}>{t('ghs_repo_label')}</Text>
@@ -128,7 +140,13 @@ export default function GithubSyncPanel({ visible, projectId, link: initialLink,
 
       {ui.kind === 'error' && <Text style={styles.error}>{errorText()}</Text>}
 
-      {remoteAhead && ui.kind !== 'pushing' && <Text style={styles.warn}>{t('ghs_remote_ahead')}</Text>}
+            {remoteAhead && ui.kind !== 'pushing' && <Text style={styles.warn}>{t('ghl_remote_ahead')}</Text>}
+
+      {remoteAhead && ui.kind !== 'pushing' && ui.kind !== 'checking' && (
+        <TouchableOpacity style={styles.primaryBtn} onPress={() => void pull.start()} activeOpacity={0.8}>
+          <Text style={styles.primaryText}>{t('ghl_pull_btn')}</Text>
+        </TouchableOpacity>
+      )}
 
       {ui.kind === 'changes' && (
         <TouchableOpacity

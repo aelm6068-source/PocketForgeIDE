@@ -119,5 +119,15 @@ export function useGithubSync(active: boolean, projectId: string, initialLink: G
 
   const reload = useCallback(() => load(link), [load, link]);
 
-  return { ui, link, changes, message, setMessage, remoteAhead, push, reload };
+    // بعد سحب ناجح: نشتغل بالربط الجديد ونعيد حساب التغييرات
+  const adopt = useCallback(
+    (next: GithubLink) => {
+      setLink(next);
+      setRemoteAhead(false);
+      void load(next);
+    },
+    [load]
+  );
+
+  return { ui, link, changes, message, setMessage, remoteAhead, push, reload, adopt };
 }

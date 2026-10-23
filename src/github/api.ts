@@ -13,6 +13,7 @@ export type ApiErrorCode =
   | 'rate_limit'
   | 'empty_repo'
   | 'diverged'
+  | 'too_large'
   | 'unknown';
 
 export class GithubApiError extends Error {
@@ -67,7 +68,8 @@ async function request<T>(
   const f = ctx.fetchFn ?? fetch;
   let res: Response;
   try {
-    res = await f(`${API}${path}`, {
+        const stamp = method === 'GET' ? `${path.includes('?') ? '&' : '?'}_=${Date.now()}` : '';
+    res = await f(`${API}${path}${stamp}`, {
       method,
       headers: {
         Accept: 'application/vnd.github+json',
@@ -256,4 +258,43 @@ export async function createTreeOnBase(
   });
   if (!res.sha) throw new GithubApiError('unknown', 0, 'bad tree response');
   return res.sha;
+}
+export interface RemoteTreeEntry {
+  path: string;
+  sha: string;
+  size: number;
+}
+
+// كل ملفات tree معين (بما فيها المجلدات الفرعية) في طلب واحد.
+// لو المستودع كبير جدًا GitHub بيقصّ النتيجة (truncated)، وساعتها منسحبش حاجة ناقصة.
+export async function getTreeFiles(
+  ctx: GhCtx,
+  owner: string,
+  repo: string,
+  treeSha: string
+): Promise<RemoteTreeEntry[]> {
+  const res = await request<{
+    tree?: { path?: string; type?: string; sha?: string; size?: number }[];
+    truncated?: boolean;
+  }>(ctx, 'GET', `/repos/${owner}/${repo}/git/trees/${treeSha}?recursive=1`);
+  if (!res.tree) throw new GithubApiError('unknown', 0, 'bad tree response');
+  if (res.truncated) throw new GithubApiError('too_large', 0, 'tree truncated');
+  const out: RemoteTreeEntry[] = [];
+  for (const e of res.tree) {
+    if (e.type === 'blob' && e.path && e.sha) out.push({ path: e.path, sha: e.sha, size: e.size ?? 0 });
+  }
+  return out;
+}
+
+// محتوى ملف (base64 زي ما GitHub بيرجّعه)
+export async function getBlobBase64(ctx: GhCtx, owner: string, repo: string, sha: string): Promise<string> {
+  const res = await request<{ content?: string; encoding?: string }>(
+    ctx,
+    'GET',
+    `/repos/${owner}/${repo}/git/blobs/${sha}`
+  );
+  if (typeof res.content !== 'string' || res.encoding !== 'base64') {
+    throw new GithubApiError('unknown', 0, 'bad blob response');
+  }
+  return res.content;
 }
