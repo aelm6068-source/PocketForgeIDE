@@ -69,9 +69,10 @@ export function useProjects() {
     reload();
   }, [reload]);
 
-  const addProject = (name: string, language: 'typescript' | 'javascript') => {
+    // id اختياري: الاستيراد من GitHub بيجهّز ملفات المشروع قبل ما يضيفه، فبيبعت id جاهز
+  const addProject = (name: string, language: 'typescript' | 'javascript', id?: string): string => {
     const newProject: Project = {
-      id: Date.now().toString(),
+            id: id ?? Date.now().toString(),
       name,
       language,
       lastModified: new Date().toISOString(),
@@ -81,6 +82,7 @@ export function useProjects() {
       saveProjectsList(next);
       return next;
     });
+    return newProject.id;
   };
 
   const deleteProject = (id: string) => {

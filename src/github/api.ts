@@ -298,3 +298,48 @@ export async function getBlobBase64(ctx: GhCtx, owner: string, repo: string, sha
   }
   return res.content;
 }
+export interface RepoListItem {
+  owner: string;
+  name: string;
+  defaultBranch: string;
+  htmlUrl: string;
+  isPrivate: boolean;
+  description: string;
+  pushedAt: string;
+  archived: boolean;
+}
+
+interface RawListRepo extends RawRepo {
+  description?: string | null;
+  pushed_at?: string | null;
+  archived?: boolean;
+}
+
+// مستودعات الحساب (بتاعتك + اللي ليك فيها صلاحية)، الأحدث نشاطًا الأول.
+// بنقرا لحد maxPages صفحة (100 مستودع في الصفحة).
+export async function listUserRepos(ctx: GhCtx, maxPages = 5): Promise<RepoListItem[]> {
+  const out: RepoListItem[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const raw = await request<RawListRepo[]>(
+      ctx,
+      'GET',
+      `/user/repos?per_page=100&page=${page}&sort=pushed&affiliation=owner,collaborator,organization_member`
+    );
+    if (!Array.isArray(raw)) throw new GithubApiError('unknown', 0, 'bad repos response');
+    for (const r of raw) {
+      if (!r.name || !r.owner?.login) continue;
+      out.push({
+        owner: r.owner.login,
+        name: r.name,
+        defaultBranch: r.default_branch ?? 'main',
+        htmlUrl: r.html_url ?? `https://github.com/${r.owner.login}/${r.name}`,
+        isPrivate: r.private === true,
+        description: r.description ?? '',
+        pushedAt: r.pushed_at ?? '',
+        archived: r.archived === true,
+      });
+    }
+    if (raw.length < 100) break;
+  }
+  return out;
+}

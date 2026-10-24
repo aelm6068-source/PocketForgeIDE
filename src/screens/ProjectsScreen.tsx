@@ -8,12 +8,15 @@ import { Project, ProjectLanguage } from '../theme/types';
 import ProjectCard from '../components/ProjectCard';
 import ActionModal from '../components/ActionModal';
 import CreateProjectModal from '../components/CreateProjectModal';
+import GithubImportModal from '../components/GithubImportModal';
+import type { ImportedProject } from '../github/useGithubImport';
 import { useLanguage } from '../i18n/LanguageContext';
 
 export default function ProjectsScreen({ navigation }: any) {
   const { t } = useLanguage();
   const { projects, addProject, deleteProject, reload } = useProjects();
   const [addModalVisible, setAddModalVisible] = useState(false);
+    const [importVisible, setImportVisible] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
 
   // كل ما نرجع لشاشة المشاريع (مثلًا بعد الشغل جوه مشروع) نعيد قراءة القايمة
@@ -29,7 +32,20 @@ export default function ProjectsScreen({ navigation }: any) {
     addProject(name, language);
     setAddModalVisible(false);
   };
+  // مشروع اتستورد من GitHub: بنضيفه للقايمة، وزرار "فتح المشروع" بيفتحه
+  const handleImported = (project: ImportedProject) => {
+    addProject(project.name, project.language, project.id);
+  };
 
+  const handleOpenImported = (project: ImportedProject) => {
+    setImportVisible(false);
+    navigation.navigate('Files', {
+      projectId: project.id,
+      projectName: project.name,
+      language: project.language,
+    });
+  };
+  
   const handleDelete = () => {
     if (deleteTarget) {
       deleteProject(deleteTarget.id);
@@ -82,7 +98,17 @@ export default function ProjectsScreen({ navigation }: any) {
       <CreateProjectModal
         visible={addModalVisible}
         onCancel={() => setAddModalVisible(false)}
-        onCreate={handleCreate}
+                onCreate={handleCreate}
+        onImportGithub={() => {
+          setAddModalVisible(false);
+          setImportVisible(true);
+        }}
+      />
+            <GithubImportModal
+        visible={importVisible}
+        onImported={handleImported}
+        onOpen={handleOpenImported}
+        onClose={() => setImportVisible(false)}
       />
 
       <ActionModal

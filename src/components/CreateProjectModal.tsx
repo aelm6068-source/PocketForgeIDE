@@ -19,9 +19,10 @@ interface Props {
   visible: boolean;
   onCancel: () => void;
   onCreate: (name: string, language: ProjectLanguage) => void;
+   onImportGithub: () => void;
 }
 
-export default function CreateProjectModal({ visible, onCancel, onCreate }: Props) {
+export default function CreateProjectModal({ visible, onCancel, onCreate, onImportGithub }: Props) {
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [language, setLanguage] = useState<ProjectLanguage>('typescript');
@@ -92,7 +93,10 @@ export default function CreateProjectModal({ visible, onCancel, onCreate }: Prop
           <TouchableOpacity style={styles.createBtn} onPress={handleCreate} activeOpacity={0.85}>
             <Text style={styles.createBtnText}>{t('create_project_submit')}</Text>
           </TouchableOpacity>
-
+          <TouchableOpacity style={styles.importBtn} onPress={onImportGithub} activeOpacity={0.85}>
+            <Text style={styles.importBtnText}>{t('ghi_open')}</Text>
+          </TouchableOpacity>
+          
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
             <Text style={styles.cancelText}>{t('common_cancel')}</Text>
           </TouchableOpacity>
@@ -183,6 +187,20 @@ const styles = StyleSheet.create({
     color: 'white',
     fontFamily: fonts.uiSemibold,
     fontSize: 15,
+  },
+    importBtn: {
+    backgroundColor: colors.surfaceElevated,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.lg,
+    paddingVertical: 13,
+    alignItems: 'center',
+    marginBottom: spacing.sm,
+  },
+  importBtnText: {
+    color: colors.text,
+    fontFamily: fonts.uiSemibold,
+    fontSize: 14,
   },
   cancelBtn: { paddingVertical: 10, alignItems: 'center' },
   cancelText: {
