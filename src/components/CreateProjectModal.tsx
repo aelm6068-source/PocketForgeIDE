@@ -20,9 +20,10 @@ interface Props {
   onCancel: () => void;
   onCreate: (name: string, language: ProjectLanguage) => void;
    onImportGithub: () => void;
+   onImportZip: () => void;
 }
 
-export default function CreateProjectModal({ visible, onCancel, onCreate, onImportGithub }: Props) {
+export default function CreateProjectModal({ visible, onCancel, onCreate, onImportGithub, onImportZip }: Props) {
   const { t } = useLanguage();
   const [name, setName] = useState('');
   const [language, setLanguage] = useState<ProjectLanguage>('typescript');
@@ -95,6 +96,9 @@ export default function CreateProjectModal({ visible, onCancel, onCreate, onImpo
           </TouchableOpacity>
           <TouchableOpacity style={styles.importBtn} onPress={onImportGithub} activeOpacity={0.85}>
             <Text style={styles.importBtnText}>{t('ghi_open')}</Text>
+          </TouchableOpacity>
+                    <TouchableOpacity style={styles.importBtn} onPress={onImportZip} activeOpacity={0.85}>
+            <Text style={styles.importBtnText}>{t('zip_open')}</Text>
           </TouchableOpacity>
           
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>

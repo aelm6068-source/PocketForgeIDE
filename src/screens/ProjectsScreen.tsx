@@ -9,6 +9,8 @@ import ProjectCard from '../components/ProjectCard';
 import ActionModal from '../components/ActionModal';
 import CreateProjectModal from '../components/CreateProjectModal';
 import GithubImportModal from '../components/GithubImportModal';
+import ZipImportModal from '../components/ZipImportModal';
+import { useZipImport } from '../github/useZipImport';
 import type { ImportedProject } from '../github/useGithubImport';
 import { useLanguage } from '../i18n/LanguageContext';
 
@@ -37,8 +39,10 @@ export default function ProjectsScreen({ navigation }: any) {
     addProject(project.name, project.language, project.id);
   };
 
+    const zip = useZipImport(handleImported, t('create_project_default_name'));
   const handleOpenImported = (project: ImportedProject) => {
     setImportVisible(false);
+      zip.close();
     navigation.navigate('Files', {
       projectId: project.id,
       projectName: project.name,
@@ -103,6 +107,11 @@ export default function ProjectsScreen({ navigation }: any) {
           setAddModalVisible(false);
           setImportVisible(true);
         }}
+                onImportZip={() => {
+          setAddModalVisible(false);
+          // نستنى نافذة الإنشاء تقفل قبل ما نفتح منتقي الملفات (مهم على iOS)
+          setTimeout(() => void zip.start(), 350);
+        }}
       />
             <GithubImportModal
         visible={importVisible}
@@ -110,6 +119,7 @@ export default function ProjectsScreen({ navigation }: any) {
         onOpen={handleOpenImported}
         onClose={() => setImportVisible(false)}
       />
+            <ZipImportModal ui={zip.ui} onOpen={handleOpenImported} onClose={zip.close} />
 
       <ActionModal
         visible={!!deleteTarget}
