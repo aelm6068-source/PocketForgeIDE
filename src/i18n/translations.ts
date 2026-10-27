@@ -22,6 +22,7 @@ import { githubSync } from './githubSync';
 import { githubPull } from './githubPull';
 import { githubImport } from './githubImport';
 import { zipImport } from './zipImport';
+import { deploy } from './deploy';
 
 export const translations = {
  ar: {
@@ -43,6 +44,7 @@ export const translations = {
     ...githubPull.ar,
     ...githubImport.ar,
     ...zipImport.ar,
+    ...deploy.ar,
   },
   en: {
     ...common.en,
@@ -63,6 +65,7 @@ export const translations = {
     ...githubPull.en,
     ...githubImport.en,
     ...zipImport.en,
+    ...deploy.en,
   }, 
 } as const;
 

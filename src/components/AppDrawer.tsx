@@ -25,6 +25,8 @@ type AppDrawerProps = {
   onCleanupPress: () => void;
     // ⭐ زرار رفع المشروع إلى GitHub
   onGithubPress: () => void;
+    // ⭐ قسم النشر والبناء (تعليمات المنصات)
+  onDeployPress: () => void;
 };
 
 export default function AppDrawer({
@@ -35,6 +37,7 @@ export default function AppDrawer({
   onRunPress,
   onCleanupPress,
   onGithubPress,
+  onDeployPress,
 }: AppDrawerProps) {
   const { t } = useLanguage();
 
@@ -135,6 +138,19 @@ export default function AppDrawer({
           <Ionicons name="logo-github" size={22} color={colors.text} />
           <Text style={[styles.drawerLabel, { color: colors.text }]}>{t('drawer_github')}</Text>
         </TouchableOpacity>
+                {/* ⭐ قسم النشر والبناء */}
+        <TouchableOpacity
+          style={styles.drawerItem}
+          onPress={() => {
+            onDeployPress();
+            onClose();
+          }}
+          activeOpacity={0.75}
+        >
+          <Ionicons name="cloud-upload-outline" size={22} color={colors.text} />
+          <Text style={[styles.drawerLabel, { color: colors.text }]}>{t('drawer_deploy')}</Text>
+        </TouchableOpacity>
+        
         {/* ⭐ الجديد: زرار مسح وتنظيف سيرفر المشروع */}
         <TouchableOpacity
           style={styles.drawerItem}

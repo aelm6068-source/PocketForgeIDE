@@ -16,6 +16,7 @@ import ActionModal from '../components/ActionModal';
 import FileActionMenu, { FileActionTarget } from '../components/FileActionMenu';
 import AppDrawer from '../components/AppDrawer';
 import GithubPublishModal from '../components/GithubPublishModal';
+import DeployGuideModal from '../components/DeployGuideModal';
 import PreviewPanel from '../components/preview/PreviewPanel';
 import TerminalPanel from '../components/terminal/TerminalPanel';
 import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, deleteFileContent, touchProject, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
@@ -53,6 +54,7 @@ export default function FilesScreen({ route, navigation }: any) {
   const [menuVisible, setMenuVisible] = useState(false);
   const [runVisible, setRunVisible] = useState(false);
     const [githubVisible, setGithubVisible] = useState(false);
+    const [deployVisible, setDeployVisible] = useState(false);
   const [runStage, setRunStage] = useState<RunProgressStage | 'idle'>('idle');
   const [runMessage, setRunMessage] = useState('');
   const [runTunnelUrl, setRunTunnelUrl] = useState<string | undefined>(undefined);
@@ -520,7 +522,9 @@ export default function FilesScreen({ route, navigation }: any) {
         onRunPress={handleRun}
         onCleanupPress={handleCleanupServer}
                 onGithubPress={() => setGithubVisible(true)}
+                onDeployPress={() => setDeployVisible(true)}
       />
+            <DeployGuideModal visible={deployVisible} onClose={() => setDeployVisible(false)} />    
             <GithubPublishModal
         visible={githubVisible}
         projectId={projectId}
