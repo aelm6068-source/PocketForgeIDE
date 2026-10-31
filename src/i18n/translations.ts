@@ -23,6 +23,7 @@ import { githubPull } from './githubPull';
 import { githubImport } from './githubImport';
 import { zipImport } from './zipImport';
 import { deploy } from './deploy';
+import { ai } from './ai';
 
 export const translations = {
  ar: {
@@ -45,6 +46,7 @@ export const translations = {
     ...githubImport.ar,
     ...zipImport.ar,
     ...deploy.ar,
+    ...ai.ar,
   },
   en: {
     ...common.en,
@@ -66,6 +68,7 @@ export const translations = {
     ...githubImport.en,
     ...zipImport.en,
     ...deploy.en,
+    ...ai.en,
   }, 
 } as const;
 
