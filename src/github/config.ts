@@ -4,8 +4,8 @@
 
 export const GITHUB_CLIENT_ID = 'Ov23litA0qXmArRgtt4I';
 
-// repo = وصول كامل للمستودعات العامة والخاصة (لازم عشان ننشئ مستودع ونرفع commits)
-export const GITHUB_SCOPE = 'repo';
+// repo = وصول كامل للمستودعات (ننشئ مستودع ونرفع commits). workflow = رفع ملفات .github/workflows (ملفات البناء)
+export const GITHUB_SCOPE = 'repo workflow';
 
 export const GITHUB_DEVICE_CODE_URL = 'https://github.com/login/device/code';
 export const GITHUB_TOKEN_URL = 'https://github.com/login/oauth/access_token';
