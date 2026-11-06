@@ -481,7 +481,7 @@ export default function FilesScreen({ route, navigation }: any) {
       )}
             {aiOpened && (
         <View style={{ flex: 1, display: activeItem === 'ai' ? 'flex' : 'none' }}>
-          <AiPanel projectName={projectName || ''} files={files} />
+                    <AiPanel projectId={projectId} projectName={projectName || ''} files={files} />
         </View>
       )}
       

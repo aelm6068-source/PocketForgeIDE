@@ -82,29 +82,104 @@ function authHeaders(provider: ProviderId, key: string): Record<string, string> 
   return { Authorization: `Bearer ${key}` };
 }
 
-// قائمة الموديلات المتاحة للمفتاح ده. بتستخدم كمان كاختبار للمفتاح.
-export async function listModels(provider: ProviderId, key: string): Promise<string[]> {
-  const headers = authHeaders(provider, key);
-  let ids: string[] = [];
+// معلومات عن موديل. أي حقل المزوّد مقالوش بيفضل undefined (يعني "غير معروف") ومبنخمّنوش.
+export interface ModelInfo {
+  id: string;
+  label?: string;
+  free?: boolean; // مجاني؟ (معروف عند OpenRouter و Hugging Face بس)
+  tools?: boolean; // بيدعم استدعاء الأدوات؟
+  vision?: boolean; // بيقبل صور؟
+  created?: number; // تاريخ الإصدار (ms) لو معروف
+  ctx?: number; // أقصى سياق (tokens) لو معروف
+}
+
+const num = (v: unknown): number | undefined => {
+  const n = typeof v === 'string' ? Number(v) : (v as number);
+  return typeof n === 'number' && Number.isFinite(n) ? n : undefined;
+};
+const strs = (v: unknown): string[] => (Array.isArray(v) ? v.map((x) => String(x)) : []);
+
+// تحويل رد قايمة الموديلات لكل مزوّد (دوال نقية علشان تتختبر)
+export function parseModels(provider: ProviderId, j: any): ModelInfo[] {
+  let out: ModelInfo[] = [];
   if (provider === 'anthropic') {
-    const j = await call('https://api.anthropic.com/v1/models?limit=100', { headers });
-    ids = (j?.data ?? []).map((m: any) => String(m.id));
+    out = (j?.data ?? []).map((m: any) => ({
+      id: String(m.id),
+      label: m.display_name ? String(m.display_name) : undefined,
+      free: false,
+      tools: true,
+      vision: true,
+      created: m.created_at ? Date.parse(String(m.created_at)) || undefined : undefined,
+    }));
   } else if (provider === 'gemini') {
-    const j = await call('https://generativelanguage.googleapis.com/v1beta/models?pageSize=200', { headers });
-    ids = (j?.models ?? [])
-      .filter((m: any) => (m.supportedGenerationMethods ?? []).includes('generateContent'))
-      .map((m: any) => String(m.name).replace(/^models\//, ''));
+    out = (j?.models ?? [])
+      .filter((m: any) => strs(m.supportedGenerationMethods).includes('generateContent'))
+      .map((m: any) => ({
+        id: String(m.name).replace(/^models\//, ''),
+        label: m.displayName ? String(m.displayName) : undefined,
+        ctx: num(m.inputTokenLimit),
+      }));
   } else if (provider === 'openai') {
-    const j = await call('https://api.openai.com/v1/models', { headers });
-    ids = (j?.data ?? []).map((m: any) => String(m.id)).filter((id: string) => /^(gpt|o\d|chatgpt)/.test(id));
+    out = (j?.data ?? [])
+      .map((m: any) => ({ id: String(m.id), free: false, created: num(m.created) ? num(m.created)! * 1000 : undefined }))
+      .filter((m: ModelInfo) => /^(gpt|o\d|chatgpt)/.test(m.id));
   } else if (provider === 'huggingface') {
-    const j = await call('https://router.huggingface.co/v1/models', { headers });
-    ids = (j?.data ?? []).map((m: any) => String(m.id));
+    out = (j?.data ?? []).map((m: any) => {
+      const ps: any[] = Array.isArray(m.providers) ? m.providers : [];
+      const ctxs = ps.map((p) => num(p?.context_length)).filter((x): x is number => x !== undefined);
+      return {
+        id: String(m.id),
+        tools: ps.length ? ps.some((p) => p?.supports_tools === true) : undefined,
+        free: ps.length ? ps.some((p) => p?.is_free === true) : undefined,
+        ctx: ctxs.length ? Math.max(...ctxs) : undefined,
+        created: num(m.created) ? num(m.created)! * 1000 : undefined,
+      };
+    });
   } else {
-    const j = await call('https://openrouter.ai/api/v1/models', { headers });
-    ids = (j?.data ?? []).map((m: any) => String(m.id));
+    out = (j?.data ?? []).map((m: any) => {
+      const params = strs(m.supported_parameters);
+      const mods = strs(m.architecture?.input_modalities);
+      const pp = num(m.pricing?.prompt);
+      const pc = num(m.pricing?.completion);
+      return {
+        id: String(m.id),
+        label: m.name ? String(m.name) : undefined,
+        free: pp !== undefined && pc !== undefined ? pp === 0 && pc === 0 : undefined,
+        tools: params.length ? params.includes('tools') : undefined,
+        vision: mods.length ? mods.includes('image') : undefined,
+        created: num(m.created) ? num(m.created)! * 1000 : undefined,
+        ctx: num(m.context_length),
+      };
+    });
   }
-  return Array.from(new Set(ids)).sort();
+  const seen = new Set<string>();
+  return out.filter((m) => (seen.has(m.id) ? false : (seen.add(m.id), true))).sort((a, b) => a.id.localeCompare(b.id));
+}
+
+const MODELS_URL: Record<ProviderId, string> = {
+  anthropic: 'https://api.anthropic.com/v1/models?limit=100',
+  gemini: 'https://generativelanguage.googleapis.com/v1beta/models?pageSize=200',
+  openai: 'https://api.openai.com/v1/models',
+  huggingface: 'https://router.huggingface.co/v1/models',
+  openrouter: 'https://openrouter.ai/api/v1/models',
+};
+
+// قائمة الموديلات المتاحة للمفتاح ده. بتستخدم كمان كاختبار للمفتاح.
+export async function listModels(provider: ProviderId, key: string): Promise<ModelInfo[]> {
+  const j = await call(MODELS_URL[provider], { headers: authHeaders(provider, key) });
+  return parseModels(provider, j);
+}
+
+// اختبار موديل بعينه برسالة صغيرة. القايمة ممكن تعرض موديل المفتاح ده ميقدرش يستخدمه
+// (زي 404 "مش متاح للمستخدمين الجدد")، فبنجرّب قبل ما نثبّته.
+// رد فاضي مش معناه إن الموديل مش شغال (موديلات التفكير ساعات بترد فاضي)، فبنعتبره نجاح.
+export async function pingModel(provider: ProviderId, key: string, model: string): Promise<void> {
+  try {
+    await sendChat(provider, key, model, 'Reply with the single word: OK', [{ role: 'user', content: 'ping' }]);
+  } catch (e) {
+    if (e instanceof AiError && e.code === 'bad_response') return;
+    throw e;
+  }
 }
 
 function textOf(parts: any[] | undefined, field: string): string {

@@ -11,8 +11,10 @@ import type { UiMessage } from '../../ai/useAiChat';
 import type { ProviderId } from '../../ai/providers';
 import type { ProjectFile } from '../../screens/editor/useEditorFile';
 import { useKeyboardPad } from '../../ai/useKeyboardPad';
+import MessageText from './MessageText';
 
 interface Props {
+  projectId: string;
   provider: ProviderId;
   apiKey: string;
   model: string;
@@ -21,10 +23,10 @@ interface Props {
   onOpenSettings: () => void;
 }
 
-export default function AiChatView({ provider, apiKey, model, projectName, files, onOpenSettings }: Props) {
+export default function AiChatView({ projectId, provider, apiKey, model, projectName, files, onOpenSettings }: Props) {
   const { t } = useLanguage();
   const { rootRef, pad } = useKeyboardPad();
-  const chat = useAiChat(provider, apiKey, model, projectName, files);
+    const chat = useAiChat(projectId, provider, apiKey, model, projectName, files);
   const [input, setInput] = useState('');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const listRef = useRef<FlatList<UiMessage>>(null);
@@ -43,7 +45,7 @@ export default function AiChatView({ provider, apiKey, model, projectName, files
 
   const submit = () => {
     const text = input.trim();
-    if (!text || chat.sending) return;
+        if (!text || chat.sending || !chat.loaded) return;
     setInput('');
     void chat.send(text);
   };
@@ -79,9 +81,13 @@ export default function AiChatView({ provider, apiKey, model, projectName, files
         ListEmptyComponent={<Text style={styles.empty}>{t('ai_chat_empty')}</Text>}
         renderItem={({ item }) => (
           <View style={[styles.bubble, item.role === 'user' ? styles.mine : styles.theirs, item.failed && styles.failed]}>
-            <Text style={styles.msg} selectable>
-              {item.content}
-            </Text>
+                       {item.role === 'assistant' ? (
+              <MessageText text={item.content} />
+            ) : (
+              <Text style={styles.msg} selectable>
+                {item.content}
+              </Text>
+            )} 
             {item.role === 'assistant' ? (
               <TouchableOpacity onPress={() => void copy(item)} style={styles.copy} activeOpacity={0.7}>
                 <Text style={styles.copyText}>{copiedId === item.id ? t('ai_copied') : t('ai_copy')}</Text>
@@ -112,9 +118,9 @@ export default function AiChatView({ provider, apiKey, model, projectName, files
           multiline
         />
         <TouchableOpacity
-          style={[styles.send, (!input.trim() || chat.sending) && styles.sendOff]}
+                    style={[styles.send, (!input.trim() || chat.sending || !chat.loaded) && styles.sendOff]}
           onPress={submit}
-          disabled={!input.trim() || chat.sending}
+                    disabled={!input.trim() || chat.sending || !chat.loaded}
           activeOpacity={0.8}
         >
           <Ionicons name="arrow-up" size={18} color={colors.text} />

@@ -1,6 +1,6 @@
 // src/components/ai/AiSettingsView.tsx
 // إعداد الذكاء الاصطناعي: اختيار المزوّد، إدخال المفتاح واختباره، واختيار الموديل.
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, TextInput, ScrollView, Linking, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { colors, fonts, spacing, radius } from '../../theme/colors';
@@ -9,6 +9,7 @@ import type { TranslationKey } from '../../i18n/translations';
 import { PROVIDERS } from '../../ai/providers';
 import type { useAiSettings } from '../../ai/useAiSettings';
 import { useKeyboardPad } from '../../ai/useKeyboardPad';
+import ModelPicker from './ModelPicker';
 
 type Settings = ReturnType<typeof useAiSettings>;
 interface Props {
@@ -17,25 +18,16 @@ interface Props {
   onCancel?: () => void; // رجوع للمحادثة (لو الإعداد جاهز بالفعل)
 }
 
-const MAX_SHOWN = 60;
-
 export default function AiSettingsView({ s, onDone, onCancel }: Props) {
   const { t } = useLanguage();
   const { rootRef, pad } = useKeyboardPad();
   const [showKey, setShowKey] = useState(false);
-  const [filter, setFilter] = useState('');
   const info = PROVIDERS.find((p) => p.id === s.provider) ?? PROVIDERS[0];
 
   const { savedKey, refreshModels } = s;
   useEffect(() => {
     if (savedKey) void refreshModels();
   }, [savedKey, refreshModels]);
-
-  const shown = useMemo(() => {
-    const q = filter.trim().toLowerCase();
-    const list = q ? s.models.filter((m) => m.toLowerCase().includes(q)) : s.models;
-    return list.slice(0, MAX_SHOWN);
-  }, [s.models, filter]);
 
   const confirmRemove = () => {
     Alert.alert(t('ai_remove_key'), t('ai_remove_confirm').split('{name}').join(info.name), [
@@ -116,38 +108,17 @@ export default function AiSettingsView({ s, onDone, onCancel }: Props) {
         {s.error ? <Text style={styles.err}>{s.error}</Text> : null}
 
         {s.savedKey && s.models.length > 0 ? (
-          <View>
-            <Text style={styles.label}>{t('ai_model_label')}</Text>
-            {s.model ? (
-              <Text style={styles.selected}>
-                {t('ai_model_selected')}: {s.model}
-              </Text>
-            ) : null}
-            <TextInput
-              style={[styles.input, styles.filter]}
-              value={filter}
-              onChangeText={setFilter}
-              placeholder={t('ai_model_filter')}
-              placeholderTextColor={colors.textFaint}
-              autoCapitalize="none"
-              autoCorrect={false}
-              spellCheck={false}
-            />
-            {shown.length === 0 ? <Text style={styles.intro}>{t('ai_model_none')}</Text> : null}
-            {shown.map((m) => (
-              <TouchableOpacity
-                key={m}
-                style={[styles.modelRow, m === s.model && styles.modelRowOn]}
-                onPress={() => void s.chooseModel(m)}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.modelText} numberOfLines={1}>
-                  {m}
-                </Text>
-                {m === s.model ? <Ionicons name="checkmark" size={16} color={colors.success} /> : null}
-              </TouchableOpacity>
-            ))}
-          </View>
+          <ModelPicker
+            provider={s.provider}
+            models={s.models}
+            selected={s.model}
+            test={s.modelTest}
+            view={s.view}
+            onView={s.setView}
+            freeOnly={s.freeOnly}
+            onFreeOnly={s.setFreeOnly}
+            onChoose={(id) => void s.chooseModel(id)}
+          />
         ) : null}
 
         {s.ready ? (
@@ -197,7 +168,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     paddingVertical: spacing.sm,
   },
-  filter: { flex: 0, marginBottom: spacing.sm },
   eye: { paddingHorizontal: spacing.sm, paddingVertical: spacing.sm },
   eyeText: { color: colors.accent, fontFamily: fonts.uiMedium, fontSize: 12.5 },
   actions: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.md },
@@ -221,16 +191,5 @@ const styles = StyleSheet.create({
   dangerText: { color: colors.error, fontFamily: fonts.uiMedium, fontSize: 13 },
   ok: { color: colors.success, fontFamily: fonts.ui, fontSize: 12.5, marginTop: spacing.sm },
   err: { color: colors.error, fontFamily: fonts.ui, fontSize: 12.5, lineHeight: 19, marginTop: spacing.sm },
-  selected: { color: colors.accent, fontFamily: fonts.code, fontSize: 12, marginBottom: spacing.sm },
-  modelRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: spacing.sm,
-    paddingHorizontal: spacing.sm,
-    borderRadius: radius.sm,
-  },
-  modelRowOn: { backgroundColor: colors.surfaceElevated },
-  modelText: { flex: 1, color: colors.text, fontFamily: fonts.code, fontSize: 12.5 },
   startBtn: { marginTop: spacing.lg },
 });

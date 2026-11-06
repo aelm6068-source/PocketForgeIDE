@@ -1,8 +1,9 @@
 // src/ai/useAiSettings.ts
 // حالة إعداد الذكاء الاصطناعي: المزوّد، المفتاح، قائمة الموديلات، الموديل المختار.
-import { useCallback, useEffect, useState } from 'react';
-import { AiError, listModels, PROVIDERS } from './providers';
-import type { ProviderId } from './providers';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { AiError, listModels, pingModel, PROVIDERS } from './providers';
+import type { ModelInfo, ProviderId } from './providers';
+import type { ModelView } from './modelFilters';
 import {
   clearAiKey,
   loadActiveProvider,
@@ -16,13 +17,24 @@ import { aiErrorText } from './aiErrors';
 
 export type AiTestState = 'idle' | 'testing' | 'ok' | 'error';
 
+// نتيجة اختبار موديل: ok شغال، rate المزوّد رفض بسبب الحدود (بنثبّته برضه)، fail مش شغال بالمفتاح ده
+export interface ModelTest {
+  id: string;
+  state: 'testing' | 'ok' | 'rate' | 'fail';
+  message: string;
+}
+
 export function useAiSettings() {
   const [loaded, setLoaded] = useState(false);
   const [provider, setProvider] = useState<ProviderId>(PROVIDERS[0].id);
   const [savedKey, setSavedKey] = useState('');
   const [keyInput, setKeyInput] = useState('');
   const [model, setModel] = useState('');
-  const [models, setModels] = useState<string[]>([]);
+  const [models, setModels] = useState<ModelInfo[]>([]);
+  const [view, setView] = useState<ModelView>('recommended');
+  const [freeOnly, setFreeOnly] = useState(false);
+  const [modelTest, setModelTest] = useState<ModelTest | null>(null);
+  const testToken = useRef(0);
   const [test, setTest] = useState<AiTestState>('idle');
   const [error, setError] = useState('');
 
@@ -33,6 +45,8 @@ export function useAiSettings() {
     setKeyInput(k);
     setModel(m);
     setModels([]);
+    setModelTest(null);
+    setFreeOnly(false);
     setTest('idle');
     setError('');
     return k;
@@ -70,7 +84,7 @@ export function useAiSettings() {
       await saveActiveProvider(provider);
       setSavedKey(key);
       setModels(list);
-      if (model && !list.includes(model)) {
+      if (model && !list.some((m) => m.id === model)) {
         setModel('');
         await saveAiModel(provider, '');
       }
@@ -83,20 +97,37 @@ export function useAiSettings() {
 
   // بيعيد جلب القايمة بالمفتاح المحفوظ (لما المستخدم يفتح الإعدادات بعد ما حفظ قبل كده)
   const refreshModels = useCallback(async () => {
-    if (!savedKey) return;
+    if (!savedKey || models.length > 0) return;
     try {
       setModels(await listModels(provider, savedKey));
     } catch (e) {
       if (e instanceof AiError && e.code === 'auth') setError(aiErrorText(e));
     }
-  }, [provider, savedKey]);
+  }, [provider, savedKey, models.length]);
 
+  // بنجرّب الموديل برسالة صغيرة قبل ما نثبّته، لأن القايمة ممكن تعرض موديل المفتاح ده ميقدرش يستخدمه
   const chooseModel = useCallback(
-    async (m: string) => {
-      setModel(m);
-      await saveAiModel(provider, m);
+    async (id: string) => {
+      const token = ++testToken.current;
+      setModelTest({ id, state: 'testing', message: '' });
+      try {
+        await pingModel(provider, savedKey, id);
+        if (token !== testToken.current) return;
+        await saveAiModel(provider, id);
+        setModel(id);
+        setModelTest({ id, state: 'ok', message: '' });
+      } catch (e) {
+        if (token !== testToken.current) return;
+        if (e instanceof AiError && e.code === 'rate') {
+          await saveAiModel(provider, id);
+          setModel(id);
+          setModelTest({ id, state: 'rate', message: aiErrorText(e) });
+        } else {
+          setModelTest({ id, state: 'fail', message: aiErrorText(e) });
+        }
+      }
     },
-    [provider]
+    [provider, savedKey]
   );
 
   const removeKey = useCallback(async () => {
@@ -112,6 +143,11 @@ export function useAiSettings() {
     setKeyInput,
     model,
     models,
+    view,
+    setView,
+    freeOnly,
+    setFreeOnly,
+    modelTest,
     test,
     error,
     ready: loaded && !!savedKey && !!model,

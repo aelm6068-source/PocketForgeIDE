@@ -9,11 +9,12 @@ import AiChatView from './AiChatView';
 import type { ProjectFile } from '../../screens/editor/useEditorFile';
 
 interface Props {
+  projectId: string;
   projectName: string;
   files: ProjectFile[];
 }
 
-export default function AiPanel({ projectName, files }: Props) {
+export default function AiPanel({ projectId, projectName, files }: Props) {
   const s = useAiSettings();
   const [editing, setEditing] = useState(false);
 
@@ -23,6 +24,7 @@ export default function AiPanel({ projectName, files }: Props) {
     <View style={styles.root}>
       {s.ready && !editing ? (
         <AiChatView
+          projectId={projectId}
           provider={s.provider}
           apiKey={s.savedKey}
           model={s.model}
