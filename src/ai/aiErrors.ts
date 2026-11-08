@@ -9,7 +9,9 @@ export function aiErrorText(err: unknown): string {
       case 'auth':
         return translate('ai_err_auth');
       case 'rate':
-        return translate('ai_err_rate');
+        return `${translate('ai_err_rate')}${err.message ? `\n${err.message}` : ''}`;
+      case 'timeout':
+        return translate('ai_err_timeout');
       case 'network':
         return translate('ai_err_network');
       case 'no_model':

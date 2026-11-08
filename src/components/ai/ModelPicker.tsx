@@ -115,7 +115,6 @@ export default function ModelPicker(p: Props) {
             key={m.id}
             style={[styles.row, m.id === p.selected && styles.rowOn]}
             onPress={() => p.onChoose(m.id)}
-            disabled={mt?.state === 'testing'}
             activeOpacity={0.7}
           >
             <View style={styles.rowMain}>

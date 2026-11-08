@@ -16,7 +16,7 @@ export interface ChatMessage {
   images?: ChatImage[];
 }
 
-export type AiErrorCode = 'auth' | 'rate' | 'network' | 'http' | 'bad_response' | 'no_model';
+export type AiErrorCode = 'auth' | 'rate' | 'network' | 'timeout' | 'http' | 'bad_response' | 'no_model';
 export class AiError extends Error {
   code: AiErrorCode;
   status?: number;
@@ -44,34 +44,45 @@ export const PROVIDERS: ProviderInfo[] = [
   { id: 'openai', name: 'OpenAI', keyUrl: 'https://platform.openai.com/api-keys', free: false },
 ];
 
-const TIMEOUT_MS = 90000;
+const TIMEOUT_MS = 90000; // رسالة عادية
+const QUICK_TIMEOUT_MS = 30000; // قايمة الموديلات واختبار الموديل
 
-async function call(url: string, init: RequestInit): Promise<any> {
+// مهلة الوقت بتغطي الاتصال وقراءة الرد كله (مش الاتصال بس)، علشان طلب معلّق ميقفلش الشاشة
+async function call(url: string, init: RequestInit, timeoutMs: number = TIMEOUT_MS): Promise<any> {
   const ctrl = new AbortController();
-  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
-  let res: Response;
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  const fail = (e: any) =>
+    ctrl.signal.aborted ? new AiError('timeout', '') : new AiError('network', String(e?.message || e));
   try {
-    res = await fetch(url, { ...init, signal: ctrl.signal });
-  } catch (e: any) {
-    throw new AiError('network', String(e?.message || e));
+    let res: Response;
+    try {
+      res = await fetch(url, { ...init, signal: ctrl.signal });
+    } catch (e: any) {
+      throw fail(e);
+    }
+    let text: string;
+    try {
+      text = await res.text();
+    } catch (e: any) {
+      throw fail(e);
+    }
+    let json: any = null;
+    try {
+      json = text ? JSON.parse(text) : null;
+    } catch {
+      json = null;
+    }
+    if (!res.ok) {
+      const detail = String(json?.error?.message || json?.error || json?.message || text || '').slice(0, 300);
+      if (res.status === 401 || res.status === 403) throw new AiError('auth', detail, res.status);
+      if (res.status === 429) throw new AiError('rate', detail, res.status);
+      throw new AiError('http', detail, res.status);
+    }
+    if (json === null) throw new AiError('bad_response', text.slice(0, 200));
+    return json;
   } finally {
     clearTimeout(timer);
   }
-  const text = await res.text();
-  let json: any = null;
-  try {
-    json = text ? JSON.parse(text) : null;
-  } catch {
-    json = null;
-  }
-  if (!res.ok) {
-    const detail = String(json?.error?.message || json?.error || json?.message || text || '').slice(0, 300);
-    if (res.status === 401 || res.status === 403) throw new AiError('auth', detail, res.status);
-    if (res.status === 429) throw new AiError('rate', detail, res.status);
-    throw new AiError('http', detail, res.status);
-  }
-  if (json === null) throw new AiError('bad_response', text.slice(0, 200));
-  return json;
 }
 
 const jsonHeaders = { 'Content-Type': 'application/json' };
@@ -166,7 +177,7 @@ const MODELS_URL: Record<ProviderId, string> = {
 
 // قائمة الموديلات المتاحة للمفتاح ده. بتستخدم كمان كاختبار للمفتاح.
 export async function listModels(provider: ProviderId, key: string): Promise<ModelInfo[]> {
-  const j = await call(MODELS_URL[provider], { headers: authHeaders(provider, key) });
+  const j = await call(MODELS_URL[provider], { headers: authHeaders(provider, key) }, QUICK_TIMEOUT_MS);
   return parseModels(provider, j);
 }
 
@@ -175,7 +186,7 @@ export async function listModels(provider: ProviderId, key: string): Promise<Mod
 // رد فاضي مش معناه إن الموديل مش شغال (موديلات التفكير ساعات بترد فاضي)، فبنعتبره نجاح.
 export async function pingModel(provider: ProviderId, key: string, model: string): Promise<void> {
   try {
-    await sendChat(provider, key, model, 'Reply with the single word: OK', [{ role: 'user', content: 'ping' }]);
+    await sendChat(provider, key, model, 'Reply with the single word: OK', [{ role: 'user', content: 'ping' }], true);
   } catch (e) {
     if (e instanceof AiError && e.code === 'bad_response') return;
     throw e;
@@ -187,28 +198,36 @@ function textOf(parts: any[] | undefined, field: string): string {
 }
 
 // بيبعت المحادثة كلها ويرجّع نص الرد. system = تعليمات عامة (اسم المشروع وملفاته مثلًا).
+// quick = اختبار سريع: مهلة أقصر وحد صغير لطول الرد (علشان موديلات التفكير مبتفضلش تفكر دقايق).
 export async function sendChat(
   provider: ProviderId,
   key: string,
   model: string,
   system: string,
   messages: ChatMessage[],
+  quick: boolean = false,
 ): Promise<string> {
   if (!model) throw new AiError('no_model', '');
   const headers = { ...jsonHeaders, ...authHeaders(provider, key) };
+  const timeoutMs = quick ? QUICK_TIMEOUT_MS : TIMEOUT_MS;
 
   if (provider === 'anthropic') {
-    const j = await call('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ model, max_tokens: 4096, system, messages: messages.map(anthropicMessage) }),
-    });
+    const j = await call(
+      'https://api.anthropic.com/v1/messages',
+      {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ model, max_tokens: quick ? 16 : 4096, system, messages: messages.map(anthropicMessage) }),
+      },
+      timeoutMs,
+    );
     const out = (j?.content ?? []).filter((b: any) => b?.type === 'text');
     return finish(textOf(out, 'text'));
   }
 
   if (provider === 'gemini') {
     const body = {
+      ...(quick ? { generationConfig: { maxOutputTokens: 16 } } : {}),
       systemInstruction: { parts: [{ text: system }] },
       contents: messages.map((m) => ({
         role: m.role === 'assistant' ? 'model' : 'user',
@@ -221,6 +240,7 @@ export async function sendChat(
     const j = await call(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`,
       { method: 'POST', headers, body: JSON.stringify(body) },
+      timeoutMs,
     );
     return finish(textOf(j?.candidates?.[0]?.content?.parts, 'text'));
   }
@@ -231,11 +251,15 @@ export async function sendChat(
       : provider === 'huggingface'
         ? 'https://router.huggingface.co/v1/chat/completions'
         : 'https://openrouter.ai/api/v1/chat/completions';
-  const j = await call(url, {
-    method: 'POST',
-    headers,
-    body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, ...messages.map(openAiMessage)] }),
-  });
+  const j = await call(
+    url,
+    {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ model, messages: [{ role: 'system', content: system }, ...messages.map(openAiMessage)] }),
+    },
+    timeoutMs,
+  );
   const c = j?.choices?.[0]?.message?.content;
   return finish(typeof c === 'string' ? c : '');
 }

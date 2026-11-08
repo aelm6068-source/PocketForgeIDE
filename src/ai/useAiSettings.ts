@@ -118,7 +118,8 @@ export function useAiSettings() {
         setModelTest({ id, state: 'ok', message: '' });
       } catch (e) {
         if (token !== testToken.current) return;
-        if (e instanceof AiError && e.code === 'rate') {
+                // 429 مؤقت (حد الطلبات): بنثبّت الموديل معاه. لكن "limit: 0" معناها إن الموديل مش متاح لخطة المفتاح ده أصلًا
+        if (e instanceof AiError && e.code === 'rate' && !/limit:\s*0\b/i.test(e.message)) {
           await saveAiModel(provider, id);
           setModel(id);
           setModelTest({ id, state: 'rate', message: aiErrorText(e) });
