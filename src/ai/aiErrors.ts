@@ -2,8 +2,16 @@
 // تحويل أخطاء الذكاء الاصطناعي لنص بلغة المستخدم.
 import { translate } from '../i18n/translate';
 import { AiError } from './providers';
+import { RouteError } from './routedSend';
 
 export function aiErrorText(err: unknown): string {
+  if (err instanceof RouteError) {
+    if (err.reason === 'all_busy') {
+      const secs = Math.max(1, Math.ceil((err.retryInMs ?? 0) / 1000));
+      return translate('ai_route_all_busy').replace('{s}', String(secs));
+    }
+    return translate(err.reason === 'no_slots' ? 'ai_route_no_slots' : 'ai_route_no_capable');
+  }
   if (err instanceof AiError) {
     switch (err.code) {
       case 'auth':

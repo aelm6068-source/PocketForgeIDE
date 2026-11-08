@@ -8,6 +8,7 @@ export interface StoredMessage {
   role: 'user' | 'assistant';
   content: string;
   failed?: boolean;
+  via?: string; // اسم الخانة الي ردّت (للرسايل بتاعة الذكاء الاصطناعي)
 }
 
 const MAX_STORED = 100;
@@ -21,7 +22,13 @@ export function sanitizeStored(raw: unknown): StoredMessage[] {
     const r = m as Record<string, unknown>;
     if ((r.role !== 'user' && r.role !== 'assistant') || typeof r.content !== 'string') continue;
     const id = typeof r.id === 'number' ? r.id : out.length + 1;
-    out.push({ id, role: r.role, content: r.content, failed: r.failed === true ? true : undefined });
+    out.push({
+      id,
+      role: r.role,
+      content: r.content,
+      failed: r.failed === true ? true : undefined,
+      via: typeof r.via === 'string' && r.via ? r.via : undefined,
+    });
   }
   return out.slice(-MAX_STORED);
 }
@@ -37,7 +44,7 @@ export async function loadChat(projectId: string): Promise<StoredMessage[]> {
 
 export async function saveChat(projectId: string, messages: StoredMessage[]): Promise<void> {
   try {
-    const slim = messages.slice(-MAX_STORED).map((m) => ({ id: m.id, role: m.role, content: m.content, failed: m.failed }));
+    const slim = messages.slice(-MAX_STORED).map((m) => ({ id: m.id, role: m.role, content: m.content, failed: m.failed, via: m.via }));
     await AsyncStorage.setItem(keyFor(projectId), JSON.stringify(slim));
   } catch (err) {
     console.warn('AI: failed to save chat', err);

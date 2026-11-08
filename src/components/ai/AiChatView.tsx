@@ -8,25 +8,24 @@ import { colors, fonts, spacing, radius } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAiChat } from '../../ai/useAiChat';
 import type { UiMessage } from '../../ai/useAiChat';
-import type { ProviderId } from '../../ai/providers';
+import type { RouteFn } from '../../ai/useAiChat';
 import type { ProjectFile } from '../../screens/editor/useEditorFile';
 import { useKeyboardPad } from '../../ai/useKeyboardPad';
 import MessageText from './MessageText';
 
 interface Props {
   projectId: string;
-  provider: ProviderId;
-  apiKey: string;
-  model: string;
+  route: RouteFn;
+  headerLabel: string; // اسم الخانة الأساسية (+ عدد الباقي)
   projectName: string;
   files: ProjectFile[];
   onOpenSettings: () => void;
 }
 
-export default function AiChatView({ projectId, provider, apiKey, model, projectName, files, onOpenSettings }: Props) {
+export default function AiChatView({ projectId, route, headerLabel, projectName, files, onOpenSettings }: Props) {
   const { t } = useLanguage();
   const { rootRef, pad } = useKeyboardPad();
-    const chat = useAiChat(projectId, provider, apiKey, model, projectName, files);
+  const chat = useAiChat(projectId, route, projectName, files);
   const [input, setInput] = useState('');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const listRef = useRef<FlatList<UiMessage>>(null);
@@ -45,7 +44,7 @@ export default function AiChatView({ projectId, provider, apiKey, model, project
 
   const submit = () => {
     const text = input.trim();
-        if (!text || chat.sending || !chat.loaded) return;
+    if (!text || chat.sending || !chat.loaded) return;
     setInput('');
     void chat.send(text);
   };
@@ -61,7 +60,7 @@ export default function AiChatView({ projectId, provider, apiKey, model, project
     <View ref={rootRef} style={[styles.root, { paddingBottom: pad }]}>
       <View style={styles.bar}>
         <Text style={styles.barTitle} numberOfLines={1}>
-          {t('ai_chat_title')} · {model}
+          {t('ai_chat_title')} · {headerLabel}
         </Text>
         <TouchableOpacity style={styles.barBtn} onPress={chat.clear} activeOpacity={0.7}>
           <Ionicons name="add-circle-outline" size={18} color={colors.text} />
@@ -81,17 +80,22 @@ export default function AiChatView({ projectId, provider, apiKey, model, project
         ListEmptyComponent={<Text style={styles.empty}>{t('ai_chat_empty')}</Text>}
         renderItem={({ item }) => (
           <View style={[styles.bubble, item.role === 'user' ? styles.mine : styles.theirs, item.failed && styles.failed]}>
-                       {item.role === 'assistant' ? (
+            {item.role === 'assistant' ? (
               <MessageText text={item.content} />
             ) : (
               <Text style={styles.msg} selectable>
                 {item.content}
               </Text>
-            )} 
+            )}
             {item.role === 'assistant' ? (
-              <TouchableOpacity onPress={() => void copy(item)} style={styles.copy} activeOpacity={0.7}>
-                <Text style={styles.copyText}>{copiedId === item.id ? t('ai_copied') : t('ai_copy')}</Text>
-              </TouchableOpacity>
+              <View style={styles.footerRow}>
+                <Text style={styles.via} numberOfLines={1}>
+                  {item.via || ''}
+                </Text>
+                <TouchableOpacity onPress={() => void copy(item)} activeOpacity={0.7}>
+                  <Text style={styles.copyText}>{copiedId === item.id ? t('ai_copied') : t('ai_copy')}</Text>
+                </TouchableOpacity>
+              </View>
             ) : null}
           </View>
         )}
@@ -118,9 +122,9 @@ export default function AiChatView({ projectId, provider, apiKey, model, project
           multiline
         />
         <TouchableOpacity
-                    style={[styles.send, (!input.trim() || chat.sending || !chat.loaded) && styles.sendOff]}
+          style={[styles.send, (!input.trim() || chat.sending || !chat.loaded) && styles.sendOff]}
           onPress={submit}
-                    disabled={!input.trim() || chat.sending || !chat.loaded}
+          disabled={!input.trim() || chat.sending || !chat.loaded}
           activeOpacity={0.8}
         >
           <Ionicons name="arrow-up" size={18} color={colors.text} />
@@ -151,7 +155,8 @@ const styles = StyleSheet.create({
   theirs: { alignSelf: 'flex-start', backgroundColor: colors.surface, borderColor: colors.border },
   failed: { borderColor: colors.error },
   msg: { color: colors.text, fontFamily: fonts.ui, fontSize: 13.5, lineHeight: 21 },
-  copy: { alignSelf: 'flex-end', marginTop: spacing.xs },
+  footerRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: spacing.sm, marginTop: spacing.xs },
+  via: { flex: 1, color: colors.textFaint, fontFamily: fonts.code, fontSize: 10.5 },
   copyText: { color: colors.accent, fontFamily: fonts.uiMedium, fontSize: 11.5 },
   thinking: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, padding: spacing.sm },
   thinkingText: { color: colors.textMuted, fontFamily: fonts.ui, fontSize: 12.5 },
