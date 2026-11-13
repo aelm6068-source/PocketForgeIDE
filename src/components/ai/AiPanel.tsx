@@ -10,6 +10,7 @@ import { useAiSlots } from '../../ai/useAiSlots';
 import { pickSlots } from '../../ai/router';
 import AiSettingsView from './AiSettingsView';
 import AiChatView from './AiChatView';
+import SlotsView from './SlotsView';
 import type { ProjectFile } from '../../screens/editor/useEditorFile';
 
 interface Props {
@@ -22,6 +23,7 @@ export default function AiPanel({ projectId, projectName, files }: Props) {
   const s = useAiSettings();
   const ai = useAiSlots();
   const [editing, setEditing] = useState(false);
+  const [showSlots, setShowSlots] = useState(false);
 
   const headerLabel = useMemo(() => {
     const first = pickSlots('chat', ai.slots, ai.rules, {}, Date.now(), false).candidates[0] ?? ai.slots[0];
@@ -54,11 +56,26 @@ export default function AiPanel({ projectId, projectName, files }: Props) {
       }
     }
     setEditing(false);
+    setShowSlots(false);
   };
 
   if (!s.loaded || !ai.loaded) return <View style={styles.root} />;
 
   const hasSlots = ai.slots.length > 0;
+
+  if (showSlots && !editing && hasSlots) {
+    return (
+      <View style={styles.root}>
+        <SlotsView
+          ai={ai}
+          onBack={() => setShowSlots(false)}
+          onAddKey={() => {
+            setEditing(true);
+          }}
+        />
+      </View>
+    );
+  }
 
   return (
     <View style={styles.root}>
@@ -70,6 +87,7 @@ export default function AiPanel({ projectId, projectName, files }: Props) {
           projectName={projectName}
           files={files}
           onOpenSettings={() => setEditing(true)}
+          onOpenSlots={() => setShowSlots(true)}
         />
       ) : (
         <AiSettingsView s={s} onDone={() => void finishSettings()} onCancel={hasSlots ? () => setEditing(false) : undefined} />

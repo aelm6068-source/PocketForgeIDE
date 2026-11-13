@@ -24,6 +24,7 @@ import { githubImport } from './githubImport';
 import { zipImport } from './zipImport';
 import { deploy } from './deploy';
 import { ai } from './ai';
+import { aiSlots } from './aiSlots';
 
 export const translations = {
  ar: {
@@ -47,6 +48,7 @@ export const translations = {
     ...zipImport.ar,
     ...deploy.ar,
     ...ai.ar,
+    ...aiSlots.ar,
   },
   en: {
     ...common.en,
@@ -69,6 +71,7 @@ export const translations = {
     ...zipImport.en,
     ...deploy.en,
     ...ai.en,
+    ...aiSlots.en,
   }, 
 } as const;
 

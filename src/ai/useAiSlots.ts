@@ -47,6 +47,14 @@ export function useAiSlots() {
     [reload]
   );
 
+  const reorder = useCallback(
+    async (ids: string[]) => {
+      await slotStore.reorder(ids);
+      await reload();
+    },
+    [reload]
+  );
+
   const remove = useCallback(
     async (id: string) => {
       const ok = await slotStore.remove(id);
@@ -105,5 +113,5 @@ export function useAiSlots() {
     []
   );
 
-  return { loaded, slots, rules, add, update, remove, setRule, setKey, busyUntil, clearCooldown, route };
+  return { loaded, slots, rules, add, update, remove, reorder, setRule, setKey, busyUntil, clearCooldown, route };
 }

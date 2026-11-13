@@ -135,6 +135,18 @@ export function createSlotStore(deps: StoreDeps) {
         return merged;
       }),
 
+        // ترتيب الخانات الجديد (الترتيب ده هو ترتيب الاختيار التلقائي). أي خانة مش مذكورة بتفضل في آخر القايمة.
+    reorder: (ids: string[]) =>
+      serial(async () => {
+        const st = await readMigrated();
+        const byId = new Map(st.slots.map((s) => [s.id, s]));
+        const first = ids.filter((id, i) => byId.has(id) && ids.indexOf(id) === i);
+        const rest = st.slots.map((s) => s.id).filter((id) => !first.includes(id));
+        const slots = [...first, ...rest].map((id) => byId.get(id) as Slot);
+        await write({ ...st, slots });
+        return slots;
+      }),
+    
     remove: (id: string) =>
       serial(async () => {
         const st = await readMigrated();

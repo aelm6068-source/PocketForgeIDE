@@ -20,9 +20,10 @@ interface Props {
   projectName: string;
   files: ProjectFile[];
   onOpenSettings: () => void;
+  onOpenSlots: () => void;
 }
 
-export default function AiChatView({ projectId, route, headerLabel, projectName, files, onOpenSettings }: Props) {
+export default function AiChatView({ projectId, route, headerLabel, projectName, files, onOpenSettings, onOpenSlots }: Props) {
   const { t } = useLanguage();
   const { rootRef, pad } = useKeyboardPad();
   const chat = useAiChat(projectId, route, projectName, files);
@@ -64,6 +65,9 @@ export default function AiChatView({ projectId, route, headerLabel, projectName,
         </Text>
         <TouchableOpacity style={styles.barBtn} onPress={chat.clear} activeOpacity={0.7}>
           <Ionicons name="add-circle-outline" size={18} color={colors.text} />
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.barBtn} onPress={onOpenSlots} activeOpacity={0.7}>
+          <Ionicons name="key-outline" size={18} color={colors.text} />
         </TouchableOpacity>
         <TouchableOpacity style={styles.barBtn} onPress={onOpenSettings} activeOpacity={0.7}>
           <Ionicons name="settings-outline" size={18} color={colors.text} />
