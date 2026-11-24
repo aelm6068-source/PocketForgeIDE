@@ -8,6 +8,7 @@ permissions:
 
 jobs:
   build-apk:
+    timeout-minutes: 60
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -16,7 +17,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 22.11.0
+          node-version: 22
           cache: npm
 
       - name: Set up JDK 17
