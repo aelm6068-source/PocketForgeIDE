@@ -6,10 +6,15 @@ import type { ProjectFile } from '../screens/editor/useEditorFile';
 
 const MAX_PATHS = 300;
 
-// مسارات الملفات (من غير node_modules وأمثالها) بترتيب أبجدي
-export function listProjectPaths(files: ProjectFile[]): string[] {
+export interface PathEntry {
+  id: string;
+  path: string;
+}
+
+// الملفات (من غير node_modules وأمثالها) بمساراتها وبترتيب أبجدي
+export function listProjectEntries(files: ProjectFile[]): PathEntry[] {
   const byId = new Map(files.map((f) => [f.id, f]));
-  const out: string[] = [];
+  const out: PathEntry[] = [];
   for (const f of files) {
     if (f.type !== 'file') continue;
     const parts: string[] = [];
@@ -21,9 +26,13 @@ export function listProjectPaths(files: ProjectFile[]): string[] {
       cur = cur.parentId ? byId.get(cur.parentId) : undefined;
     }
     const path = parts.join('/');
-    if (classifyPath(path) === 'include') out.push(path);
+    if (classifyPath(path) === 'include') out.push({ id: f.id, path });
   }
-  return out.sort();
+  return out.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+}
+
+export function listProjectPaths(files: ProjectFile[]): string[] {
+  return listProjectEntries(files).map((e) => e.path);
 }
 
 export function buildSystemPrompt(projectName: string, files: ProjectFile[]): string {
