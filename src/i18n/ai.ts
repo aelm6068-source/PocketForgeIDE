@@ -57,13 +57,13 @@ export const ai = {
     ai_chat_placeholder: 'اسأل عن مشروعك...',
     ai_send: 'إرسال',
     ai_thinking: 'بيفكر...',
-    ai_chat_empty: 'اسأل أي حاجة عن مشروعك. الذكاء الاصطناعي بيشوف أسماء ملفاتك بس (مش محتواها) في الخطوة دي.',
+    ai_chat_empty: 'اسأل أي حاجة عن مشروعك. الذكاء الاصطناعي بيشوف أسماء ملفاتك، ولو عايزه يشوف محتوى ملفات اختارها بزرار "ملفات".',
     ai_clear_chat: 'محادثة جديدة',
     ai_open_settings: 'الإعدادات',
     ai_copy: 'نسخ',
     ai_copied: 'اتنسخ',
     ai_sys_prompt:
-      'You are a coding assistant inside PocketForge, a mobile IDE for building mobile apps and websites with React Native, Expo and TypeScript. The user works from a phone, so keep answers short and practical. Reply in the same language the user writes in. Project name: {name}. Project files (paths only, contents are not shared): {files}',
+      'You are a coding assistant inside PocketForge, a mobile IDE for building mobile apps and websites with React Native, Expo and TypeScript. The user works from a phone, so keep answers short and practical. Reply in the same language the user writes in. Project name: {name}. Project files (paths only): {files}. The user may attach the contents of some files to a message; when they do, those contents appear in that message.',
   },
   en: {
     ai_settings_title: 'AI setup',
@@ -121,12 +121,12 @@ export const ai = {
     ai_chat_placeholder: 'Ask about your project...',
     ai_send: 'Send',
     ai_thinking: 'Thinking...',
-    ai_chat_empty: 'Ask anything about your project. At this stage the AI only sees your file names, not their contents.',
+    ai_chat_empty: 'Ask anything about your project. The AI sees your file names; to share file contents, pick them with the "Files" button.',
     ai_clear_chat: 'New chat',
     ai_open_settings: 'Settings',
     ai_copy: 'Copy',
     ai_copied: 'Copied',
     ai_sys_prompt:
-      'You are a coding assistant inside PocketForge, a mobile IDE for building mobile apps and websites with React Native, Expo and TypeScript. The user works from a phone, so keep answers short and practical. Reply in the same language the user writes in. Project name: {name}. Project files (paths only, contents are not shared): {files}',
+      'You are a coding assistant inside PocketForge, a mobile IDE for building mobile apps and websites with React Native, Expo and TypeScript. The user works from a phone, so keep answers short and practical. Reply in the same language the user writes in. Project name: {name}. Project files (paths only): {files}. The user may attach the contents of some files to a message; when they do, those contents appear in that message.',
   },
 };
