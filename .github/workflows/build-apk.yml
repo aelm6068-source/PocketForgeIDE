@@ -2,6 +2,16 @@ name: Build test APK
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths-ignore:
+      - '**/*.md'
+      - LICENSE
+
+concurrency:
+  group: build-test-apk
+  cancel-in-progress: true
 
 permissions:
   contents: write
