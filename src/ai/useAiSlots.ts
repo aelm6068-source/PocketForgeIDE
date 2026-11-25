@@ -4,6 +4,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { sendChat, type ChatMessage } from './providers';
 import { routedSend, type RouteResult } from './routedSend';
+import { routedStep, type StepRouteResult } from './routedStep';
+import { sendStep } from './providersTools';
+import type { AgentMessage, ToolDef } from './toolTypes';
 import type { Cooldowns } from './router';
 import { slotStore } from './slotStore';
 import type { NewSlot, SlotPatch } from './slotStoreCore';
@@ -113,5 +116,29 @@ export function useAiSlots() {
     []
   );
 
-  return { loaded, slots, rules, add, update, remove, reorder, setRule, setKey, busyUntil, clearCooldown, route };
+  // خطوة واحدة مع أدوات (بتتكرر من حلقة الأدوات). بتتطلب خانات بتدعم الأدوات.
+  const routeStep = useCallback(
+    async (role: SlotRole, messages: AgentMessage[], system: string, tools: ToolDef[]): Promise<StepRouteResult> => {
+      try {
+        return await routedStep(
+          {
+            role,
+            slots: latest.current.slots,
+            rules: latest.current.rules,
+            cooldowns: cooldowns.current,
+            system,
+            messages,
+            tools,
+            hasImages: messages.some((m) => m.role === 'user' && !!m.images?.length),
+          },
+          { send: sendStep, getKey: slotStore.getKey, now: Date.now }
+        );
+      } finally {
+        setTick((n) => n + 1);
+      }
+    },
+    []
+  );
+
+  return { loaded, slots, rules, add, update, remove, reorder, setRule, setKey, busyUntil, clearCooldown, route, routeStep };
 }

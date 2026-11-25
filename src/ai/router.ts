@@ -13,9 +13,9 @@ export interface Need {
 }
 
 // كل دور محتاج إيه من الموديل
-export function needFor(role: SlotRole, hasImages = false): Need {
+export function needFor(role: SlotRole, hasImages = false, forceTools = false): Need {
   const need: Need = {};
-  if (role === 'agent') need.tools = true;
+  if (role === 'agent' || forceTools) need.tools = true;
   if (role === 'vision' || hasImages) need.vision = true;
   return need;
 }
@@ -49,9 +49,10 @@ export function pickSlots(
   cooldowns: Cooldowns,
   now: number,
   hasImages = false,
+  forceTools = false,
 ): Pick {
   if (slots.length === 0) return { candidates: [], busy: [], reason: 'no_slots' };
-  const need = needFor(role, hasImages);
+  const need = needFor(role, hasImages, forceTools);
   const rule = rules[role];
 
   let ordered: Slot[];

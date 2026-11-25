@@ -26,6 +26,7 @@ import { deploy } from './deploy';
 import { ai } from './ai';
 import { aiSlots } from './aiSlots';
 import { aiPlan } from './aiPlan';
+import { aiTools } from './aiTools';
 
 export const translations = {
  ar: {
@@ -51,6 +52,7 @@ export const translations = {
     ...ai.ar,
     ...aiSlots.ar,
     ...aiPlan.ar,
+    ...aiTools.ar,
   },
   en: {
     ...common.en,
@@ -75,6 +77,7 @@ export const translations = {
     ...ai.en,
     ...aiSlots.en,
     ...aiPlan.en,
+    ...aiTools.en,
   }, 
 } as const;
 

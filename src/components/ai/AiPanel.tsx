@@ -83,6 +83,7 @@ export default function AiPanel({ projectId, projectName, files }: Props) {
         <AiChatView
           projectId={projectId}
           route={ai.route}
+          routeStep={ai.routeStep}
           headerLabel={headerLabel}
           projectName={projectName}
           files={files}

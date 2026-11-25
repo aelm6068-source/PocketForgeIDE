@@ -34,6 +34,16 @@ function hasSecret(s: string): boolean {
   return findSecretInText(s) !== null || EXTRA_SECRETS.some((re) => re.test(s));
 }
 
+// حكم على ملف قبل ما نبعت محتواه لأي موديل (بيتشارك مع أدوات القراءة)
+export type ContentVerdict = 'ok' | 'empty' | 'path' | 'binary' | 'secret';
+export function contentVerdict(path: string, content: string): ContentVerdict {
+  if (!content.trim()) return 'empty';
+  if (classifyPath(path) !== 'include') return 'path';
+  if (looksBinary(content)) return 'binary';
+  if (hasSecret(content)) return 'secret';
+  return 'ok';
+}
+
 function fenceFor(content: string): string {
   let longest = 0;
   const runs = content.match(/`+/g);
@@ -50,7 +60,7 @@ export function buildFileContext(entries: ContextEntry[]): ContextResult {
 
   for (const e of entries) {
     const raw = e.content;
-    if (raw === null || !raw.trim() || classifyPath(e.path) !== 'include' || looksBinary(raw) || hasSecret(raw)) {
+    if (raw === null || contentVerdict(e.path, raw) !== 'ok') {
       skipped.push(e.path);
       continue;
     }
