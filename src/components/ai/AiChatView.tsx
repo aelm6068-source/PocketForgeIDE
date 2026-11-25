@@ -8,7 +8,8 @@ import { colors, fonts, spacing, radius } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { useAiChat } from '../../ai/useAiChat';
 import type { UiMessage } from '../../ai/useAiChat';
-import type { RouteFn } from '../../ai/useAiChat';
+import type { RouteFn, RouteStepFn } from '../../ai/useAiChat';
+import type { TranslationKey } from '../../i18n/translations';
 import type { ChatMode } from '../../ai/chatRequest';
 import { splitPlanReply } from '../../ai/planFormat';
 import type { ProjectFile } from '../../screens/editor/useEditorFile';
@@ -20,6 +21,7 @@ import ContextPicker from './ContextPicker';
 interface Props {
   projectId: string;
   route: RouteFn;
+  routeStep: RouteStepFn;
   headerLabel: string; // اسم الخانة الأساسية (+ عدد الباقي)
   projectName: string;
   files: ProjectFile[];
@@ -27,14 +29,15 @@ interface Props {
   onOpenSlots: () => void;
 }
 
-export default function AiChatView({ projectId, route, headerLabel, projectName, files, onOpenSettings, onOpenSlots }: Props) {
+export default function AiChatView({ projectId, route, routeStep, headerLabel, projectName, files, onOpenSettings, onOpenSlots }: Props) {
   const { t } = useLanguage();
   const { rootRef, pad } = useKeyboardPad();
-  const chat = useAiChat(projectId, route, projectName, files);
+  const chat = useAiChat(projectId, route, routeStep, projectName, files);
   const [input, setInput] = useState('');
   const [mode, setMode] = useState<ChatMode>('chat');
   const [ctxIds, setCtxIds] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [toolsOn, setToolsOn] = useState(false); // قراءة ملفات المشروع (مقفولة افتراضيًا)
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const listRef = useRef<FlatList<UiMessage>>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -63,7 +66,7 @@ export default function AiChatView({ projectId, route, headerLabel, projectName,
     if (!text || chat.sending || !chat.loaded) return;
     setInput('');
     setCtxIds([]); // الملفات بتتبعت مع الرسالة دي بس
-    void chat.send(text, { mode, contextIds: selected });
+    void chat.send(text, { mode, contextIds: selected, tools: toolsOn });
   };
 
   const copy = async (m: UiMessage) => {
@@ -90,6 +93,12 @@ export default function AiChatView({ projectId, route, headerLabel, projectName,
         <PlanCard plan={plan} />
       </View>
     );
+  };
+
+  const toolLabel = (name: string): string => {
+    const k = `tool_${name}` as TranslationKey;
+    const v = t(k);
+    return v === k ? name : v;
   };
 
   const canSend = !!input.trim() && !chat.sending && chat.loaded;
@@ -142,6 +151,17 @@ export default function AiChatView({ projectId, route, headerLabel, projectName,
                 ) : null}
               </View>
             )}
+            {item.role === 'assistant' && item.tools?.length ? (
+              <View style={styles.toolRow}>
+                {item.tools.map((tr, i) => (
+                  <Text key={i} style={[styles.toolChip, !tr.ok && styles.toolChipFail]} numberOfLines={1}>
+                    {toolLabel(tr.name)}
+                    {tr.arg ? ` ${tr.arg}` : ''}
+                  </Text>
+                ))}
+                {item.capped ? <Text style={styles.notice}>{t('tools_capped')}</Text> : null}
+              </View>
+            ) : null}
             {item.role === 'assistant' ? (
               <View style={styles.footerRow}>
                 <Text style={styles.via} numberOfLines={1}>
@@ -159,7 +179,9 @@ export default function AiChatView({ projectId, route, headerLabel, projectName,
             {chat.sending ? (
               <View style={styles.thinking}>
                 <ActivityIndicator size="small" color={colors.accent} />
-                <Text style={styles.thinkingText}>{t('ai_thinking')}</Text>
+                <Text style={styles.thinkingText} numberOfLines={1}>
+                  {chat.activity ? `${toolLabel(chat.activity.name)} ${chat.activity.arg}` : t('ai_thinking')}
+                </Text>
               </View>
             ) : null}
             {chat.skipped > 0 ? (
@@ -185,6 +207,14 @@ export default function AiChatView({ projectId, route, headerLabel, projectName,
             </TouchableOpacity>
           ))}
         </View>
+        <TouchableOpacity
+          style={[styles.attachBtn, toolsOn && styles.modeChipOn]}
+          onPress={() => setToolsOn((v) => !v)}
+          activeOpacity={0.8}
+        >
+          <Ionicons name="search-outline" size={16} color={colors.text} />
+          <Text style={styles.attachText}>{t('tools_toggle')}</Text>
+        </TouchableOpacity>
         <TouchableOpacity style={styles.attachBtn} onPress={() => setPickerOpen(true)} activeOpacity={0.8}>
           <Ionicons name="document-attach-outline" size={16} color={colors.text} />
           <Text style={styles.attachText}>
@@ -193,6 +223,8 @@ export default function AiChatView({ projectId, route, headerLabel, projectName,
           </Text>
         </TouchableOpacity>
       </View>
+
+      {toolsOn ? <Text style={styles.toolHint}>{t('tools_hint')}</Text> : null}
 
       {selected.length ? (
         <View style={styles.selRow}>
@@ -307,6 +339,20 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   attachText: { color: colors.text, fontFamily: fonts.uiMedium, fontSize: 12 },
+  toolRow: { gap: 3, marginTop: spacing.xs },
+  toolChip: {
+    alignSelf: 'flex-start',
+    maxWidth: '100%',
+    color: colors.textMuted,
+    fontFamily: fonts.code,
+    fontSize: 10.5,
+    backgroundColor: colors.surfaceElevated,
+    borderRadius: radius.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+  },
+  toolChipFail: { color: colors.warning },
+  toolHint: { color: colors.textMuted, fontFamily: fonts.ui, fontSize: 11.5, lineHeight: 17, paddingHorizontal: spacing.sm + 2, paddingTop: spacing.xs },
   selRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, paddingHorizontal: spacing.sm, paddingTop: spacing.xs },
   selChip: {
     flexDirection: 'row',

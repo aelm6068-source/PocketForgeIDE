@@ -1,8 +1,12 @@
 // src/ai/useAiChat.ts
 // محادثة الذكاء الاصطناعي: الرسايل، الإرسال (دردشة أو خطة + ملفات سياق)، حفظ المحادثة لكل مشروع.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { ChatImage, ChatMessage } from './providers';
+import { AiError, type ChatImage, type ChatMessage } from './providers';
 import type { RouteResult } from './routedSend';
+import type { StepRouteResult } from './routedStep';
+import { runToolLoop } from './toolLoop';
+import { executeTool, READ_TOOLS, toolsInstructions, withBudget } from './tools';
+import type { AgentMessage, ToolDef, ToolTrace } from './toolTypes';
 import type { SlotRole } from './slots';
 import { aiErrorText } from './aiErrors';
 import { buildSystemPrompt, listProjectEntries } from './projectContext';
@@ -15,26 +19,32 @@ import type { ProjectFile } from '../screens/editor/useEditorFile';
 // الإرسال بيتم عن طريق الراوتر (بيختار الخانة المناسبة ويبدّل لو واحدة فشلت)
 export type RouteFn = (role: SlotRole, messages: ChatMessage[], system: string) => Promise<RouteResult>;
 
+export type RouteStepFn = (role: SlotRole, messages: AgentMessage[], system: string, tools: ToolDef[]) => Promise<StepRouteResult>;
+
 export interface UiMessage extends ChatMessage {
   id: number;
   failed?: boolean;
   via?: string; // اسم الخانة الي ردّت
   mode?: 'plan'; // رسالة في وضع الخطة
   ctx?: string[]; // ملفات السياق الي اتبعتت مع رسالة المستخدم
+  tools?: ToolTrace[]; // الأدوات الي استخدمها الموديل
+  capped?: boolean;
 }
 
 export interface SendOptions {
   images?: ChatImage[];
   mode?: ChatMode;
   contextIds?: string[]; // معرّفات الملفات المختارة
+  tools?: boolean; // السماح للموديل بقراءة ملفات المشروع (قراءة فقط)
 }
 
-export function useAiChat(projectId: string, route: RouteFn, projectName: string, files: ProjectFile[]) {
+export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteStepFn, projectName: string, files: ProjectFile[]) {
   const [messages, setMessages] = useState<UiMessage[]>([]);
   const [loaded, setLoaded] = useState(false);
   const [sending, setSending] = useState(false);
   const [error, setError] = useState('');
   const [skipped, setSkipped] = useState(0); // كام ملف سياق اتخطّى في آخر إرسال
+  const [activity, setActivity] = useState<ToolTrace | null>(null); // آخر أداة بتتنفّذ دلوقتي
   const nextId = useRef(1);
   const busy = useRef(false);
   const system = useMemo(() => buildSystemPrompt(projectName, files), [projectName, files]);
@@ -105,15 +115,42 @@ export function useAiChat(projectId: string, route: RouteFn, projectName: string
           }
         }
         const req = prepareRequest({ history, text: content, images, mode, contextText, system });
-        const res = await route(req.role, req.payload, req.system);
+        let reply: string;
+        let via: string;
+        let tools: ToolTrace[] | undefined;
+        let capped = false;
+        if (opts.tools) {
+          const toolCtx = { entries, read: (id: string) => loadFileContent(projectId, id) };
+          const exec = withBudget((c) => executeTool(c, toolCtx));
+          const sys = `${req.system}\n\n${toolsInstructions()}`;
+          const r = await runToolLoop(
+            req.payload as AgentMessage[],
+            {
+              step: (m) => routeStep(req.role, m, sys, READ_TOOLS).then((x) => ({ step: x.step, slot: x.slot })),
+              execute: exec,
+              onTool: (c, res) => setActivity({ name: c.name, arg: String(c.args.path ?? c.args.query ?? c.args.prefix ?? '').slice(0, 120), ok: !res.isError }),
+            },
+          );
+          if (!r.text.trim()) throw new AiError('bad_response', 'empty');
+          reply = r.text;
+          via = r.slot?.label ?? '';
+          tools = r.trace.length ? r.trace.slice(0, 20) : undefined;
+          capped = r.capped;
+        } else {
+          const res = await route(req.role, req.payload, req.system);
+          reply = res.reply;
+          via = res.slot.label;
+        }
         setMessages((prev) => [
           ...prev,
           {
             id: nextId.current++,
             role: 'assistant',
-            content: res.reply,
-            via: res.slot.label,
+            content: reply,
+            via,
             mode: mode === 'plan' ? 'plan' : undefined,
+            tools,
+            capped: capped || undefined,
           },
         ]);
       } catch (e) {
@@ -122,9 +159,10 @@ export function useAiChat(projectId: string, route: RouteFn, projectName: string
       } finally {
         busy.current = false;
         setSending(false);
+        setActivity(null);
       }
     },
-    [loaded, messages, route, system, entries, projectId]
+    [loaded, messages, route, routeStep, system, entries, projectId]
   );
 
   const clear = useCallback(() => {
@@ -134,5 +172,5 @@ export function useAiChat(projectId: string, route: RouteFn, projectName: string
     void clearChat(projectId);
   }, [projectId]);
 
-  return { messages, loaded, sending, error, skipped, entries, send, clear };
+  return { messages, loaded, sending, error, skipped, activity, entries, send, clear };
 }

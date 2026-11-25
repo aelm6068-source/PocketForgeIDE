@@ -48,7 +48,7 @@ const TIMEOUT_MS = 90000; // رسالة عادية
 const QUICK_TIMEOUT_MS = 30000; // قايمة الموديلات واختبار الموديل
 
 // مهلة الوقت بتغطي الاتصال وقراءة الرد كله (مش الاتصال بس)، علشان طلب معلّق ميقفلش الشاشة
-async function call(url: string, init: RequestInit, timeoutMs: number = TIMEOUT_MS): Promise<any> {
+export async function call(url: string, init: RequestInit, timeoutMs: number = TIMEOUT_MS): Promise<any> {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
   const fail = (e: any) =>
@@ -85,9 +85,9 @@ async function call(url: string, init: RequestInit, timeoutMs: number = TIMEOUT_
   }
 }
 
-const jsonHeaders = { 'Content-Type': 'application/json' };
+export const jsonHeaders = { 'Content-Type': 'application/json' };
 
-function authHeaders(provider: ProviderId, key: string): Record<string, string> {
+export function authHeaders(provider: ProviderId, key: string): Record<string, string> {
   if (provider === 'anthropic') return { 'x-api-key': key, 'anthropic-version': '2023-06-01' };
   if (provider === 'gemini') return { 'x-goog-api-key': key };
   return { Authorization: `Bearer ${key}` };
