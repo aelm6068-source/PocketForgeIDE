@@ -24,13 +24,12 @@ import { createProjectStore } from '../../terminal/projectStore';
 import type { Tr } from '../../terminal/types';
 import { TERMINAL_HTML } from './terminalHtml';
 import { useJsRunner } from './useJsRunner';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type Entry = { k: 'cmd' | 'out' | 'err' | 'info'; t: string; p?: string };
 
 const MAX_ENTRIES = 3000;
 // مسافة إضافية فوق الكيبورد (بتعوّض شريط التنقل اللي أندرويد مبيحسبوش). لو الخانة لسه ناقصة زوّد الرقم، ولو بعيدة قلّله
-const KB_EXTRA = 36;
+const KB_EXTRA = 8;
 const QUICK_KEYS = ['/', '-', '.', '~', '*', '>', '|', '&&', ';', '"'];
 
 // الشِل بيبعت مفاتيح نصية عامة، والترجمة بتتم هنا بدالة translate اللي بتدعم {path} و{cmd}
@@ -219,13 +218,12 @@ export default function TerminalPanel({ projectId }: { projectId: string }) {
     copyText(text);
   }, [copyText]);
      const rootRef = useRef<View>(null);
-  const insets = useSafeAreaInsets();
   const [kbPad, setKbPad] = useState(0);
   useEffect(() => {
     const measure = (screenY: number) => {
       rootRef.current?.measureInWindow((_x, y, _w, h) => {
         const overlap = Math.round(y + h - screenY);
-                setKbPad(overlap > 0 ? overlap + Math.max(insets.bottom, KB_EXTRA) : 0);
+                setKbPad(overlap > 0 ? overlap + KB_EXTRA : 0);
       });
     };
     const show = Keyboard.addListener('keyboardDidShow', (e) => {
@@ -237,7 +235,7 @@ export default function TerminalPanel({ projectId }: { projectId: string }) {
       show.remove();
       hide.remove();
     };
-  }, [insets.bottom]);
+  }, []);
   return (
         <View ref={rootRef} style={[styles.container, { paddingBottom: kbPad }]}>
       {/* شريط الأدوات */}
