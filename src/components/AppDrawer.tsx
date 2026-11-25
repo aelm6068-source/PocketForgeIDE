@@ -52,6 +52,7 @@ export default function AppDrawer({
         { key: 'terminal', label: t('drawer_terminal'), icon: 'terminal-outline' },
     { key: 'preview', label: t('drawer_preview'), icon: 'play-outline' },
     { key: 'ai', label: 'AI', icon: 'sparkles-outline' },
+    { key: 'icons', label: t('drawer_icons'), icon: 'shapes-outline' },
   ];
 
   useEffect(() => {
