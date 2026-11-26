@@ -12,8 +12,7 @@ import type { RouteFn, RouteStepFn } from '../../ai/useAiChat';
 import type { TranslationKey } from '../../i18n/translations';
 import type { ChatMode } from '../../ai/chatRequest';
 import { planToMarkdown, splitPlanReply } from '../../ai/planFormat';
-import { MAX_CONTEXT_FILES } from '../../ai/contextFiles';
-import { pickDeviceFiles, type Attachment } from '../../ai/deviceFiles';
+import { useAttachments } from '../../ai/useAttachments';
 import type { ProjectFile } from '../../screens/editor/useEditorFile';
 import { useKeyboardPad } from '../../ai/useKeyboardPad';
 import MessageText from './MessageText';
@@ -41,8 +40,6 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
   const [ctxIds, setCtxIds] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [toolsOn, setToolsOn] = useState(false); // قراءة ملفات المشروع (مقفولة افتراضيًا)
-  const [attached, setAttached] = useState<Attachment[]>([]); // ملفات من الجهاز
-  const [attachNote, setAttachNote] = useState('');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const listRef = useRef<FlatList<UiMessage>>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,30 +62,22 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
 
   const pathById = new Map<string, string>(chat.entries.map((e) => [e.id, e.path]));
   const selected = ctxIds.filter((id) => pathById.has(id));
+  const att = useAttachments(selected.length);
 
   const submit = () => {
     const text = input.trim();
     if (!text || chat.sending || !chat.loaded) return;
     setInput('');
     setCtxIds([]); // الملفات بتتبعت مع الرسالة دي بس
-    setAttached([]);
-    setAttachNote('');
-    void chat.send(text, { mode, contextIds: selected, tools: toolsOn || mode === 'agent', attachments: attached });
-  };
-
-  const attachFromDevice = async () => {
-    const room = MAX_CONTEXT_FILES - selected.length - attached.length;
-    if (room <= 0) {
-      setAttachNote(t('ctx_max').replace('{n}', String(MAX_CONTEXT_FILES)));
-      return;
-    }
-    try {
-      const r = await pickDeviceFiles(room);
-      if (r.files.length) setAttached((cur) => [...cur, ...r.files]);
-      setAttachNote(r.skipped ? t('attach_skipped').replace('{n}', String(r.skipped)) : '');
-    } catch {
-      setAttachNote(t('attach_skipped').replace('{n}', '1'));
-    }
+    att.clear();
+    void chat.send(text, {
+      mode,
+      contextIds: selected,
+      tools: toolsOn || mode === 'agent',
+      attachments: att.files,
+      images: att.images.length ? att.images : undefined,
+      mediaNames: att.media.map((m) => `${m.kind === 'video' ? '🎞' : '🖼'} ${m.name}`),
+    });
   };
 
   const executePlan = (md: string) => {
@@ -261,12 +250,20 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
             <Text style={styles.attachText}>{t('tools_toggle')}</Text>
           </TouchableOpacity>
         ) : null}
-        <TouchableOpacity style={styles.attachBtn} onPress={() => void attachFromDevice()} activeOpacity={0.8}>
-          <Ionicons name="add" size={16} color={colors.text} />
+        <TouchableOpacity style={styles.attachBtn} onPress={() => void att.addFiles()} activeOpacity={0.8}>
+          <Ionicons name="document-outline" size={16} color={colors.text} />
           <Text style={styles.attachText}>
             {t('attach_device')}
-            {attached.length ? ` (${attached.length})` : ''}
+            {att.files.length ? ` (${att.files.length})` : ''}
           </Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.attachBtn} onPress={() => void att.addImages()} activeOpacity={0.8}>
+          <Ionicons name="image-outline" size={16} color={colors.text} />
+          <Text style={styles.attachText}>{t('attach_image')}</Text>
+        </TouchableOpacity>
+        <TouchableOpacity style={styles.attachBtn} onPress={() => void att.addVideo()} activeOpacity={0.8}>
+          <Ionicons name="videocam-outline" size={16} color={colors.text} />
+          <Text style={styles.attachText}>{t('attach_video')}</Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.attachBtn} onPress={() => setPickerOpen(true)} activeOpacity={0.8}>
           <Ionicons name="document-attach-outline" size={16} color={colors.text} />
@@ -278,9 +275,9 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
       </View>
 
       {mode === 'agent' ? <Text style={styles.toolHint}>{t('agent_hint')}</Text> : toolsOn ? <Text style={styles.toolHint}>{t('tools_hint')}</Text> : null}
-      {attachNote ? <Text style={styles.toolHint}>{attachNote}</Text> : null}
+      {att.note ? <Text style={styles.toolHint}>{att.note}</Text> : null}
 
-      {selected.length || attached.length ? (
+      {selected.length || att.files.length || att.media.length ? (
         <View style={styles.selRow}>
           {selected.map((id) => (
             <TouchableOpacity
@@ -295,11 +292,21 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
               <Ionicons name="close" size={12} color={colors.textMuted} />
             </TouchableOpacity>
           ))}
-          {attached.map((a, i) => (
+          {att.media.map((m, i) => (
+            <TouchableOpacity key={`m${i}`} style={styles.selChip} onPress={() => att.removeMedia(i)} activeOpacity={0.7}>
+              <Ionicons name={m.kind === 'video' ? 'videocam-outline' : 'image-outline'} size={12} color={colors.textMuted} />
+              <Text style={styles.selText} numberOfLines={1}>
+                {m.name}
+                {m.kind === 'video' ? ` · ${m.images.length}` : ''}
+              </Text>
+              <Ionicons name="close" size={12} color={colors.textMuted} />
+            </TouchableOpacity>
+          ))}
+          {att.files.map((a, i) => (
             <TouchableOpacity
               key={`a${i}`}
               style={styles.selChip}
-              onPress={() => setAttached(attached.filter((_, j) => j !== i))}
+              onPress={() => att.removeFile(i)}
               activeOpacity={0.7}
             >
               <Text style={styles.selText} numberOfLines={1}>

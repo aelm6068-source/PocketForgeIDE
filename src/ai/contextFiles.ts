@@ -3,9 +3,9 @@
 // والمسارات المتجاهلة، وبيحدّد حجم كل ملف والإجمالي. منطق بحت (من غير react).
 import { classifyPath, findSecretInText } from '../github/ignore';
 
-export const MAX_CONTEXT_FILES = 12;
+export const MAX_CONTEXT_FILES = 20;
 export const MAX_FILE_CHARS = 20000;
-export const MAX_TOTAL_CHARS = 60000;
+export const MAX_TOTAL_CHARS = 100000;
 
 export interface ContextEntry {
   path: string;
