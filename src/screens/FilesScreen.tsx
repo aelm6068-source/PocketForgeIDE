@@ -20,6 +20,7 @@ import DeployGuideModal from '../components/DeployGuideModal';
 import PreviewPanel from '../components/preview/PreviewPanel';
 import TerminalPanel from '../components/terminal/TerminalPanel';
 import AiPanel from '../components/ai/AiPanel';
+import IconsPanel from '../components/icons/IconsPanel';
 import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, deleteFileContent, touchProject, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
 import * as SecureStore from 'expo-secure-store';
 import { createSandbox, uploadProjectFiles, runExpoTunnel, RunProgressStage, deleteSandbox, listSandboxes } from '../utils/daytonaClient';
@@ -50,6 +51,11 @@ export default function FilesScreen({ route, navigation }: any) {
   const [aiOpened, setAiOpened] = useState(false);
   useEffect(() => {
     if (activeItem === 'ai') setAiOpened(true);
+  }, [activeItem]);
+    // مكتبة الأيقونات بتفضل شغالة بعد أول فتح (البحث والمجموعة المختارة متضيعش)
+  const [iconsOpened, setIconsOpened] = useState(false);
+  useEffect(() => {
+    if (activeItem === 'icons') setIconsOpened(true);
   }, [activeItem]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [fileModalVisible, setFileModalVisible] = useState(false);
@@ -485,9 +491,15 @@ export default function FilesScreen({ route, navigation }: any) {
         </View>
       )}
       
+      {iconsOpened && (
+        <View style={{ flex: 1, display: activeItem === 'icons' ? 'flex' : 'none' }}>
+          <IconsPanel />
+        </View>
+      )}
+
       {activeItem === 'preview' ? (
         <PreviewPanel projectId={projectId} files={files} />
-                        ) : activeItem === 'terminal' || activeItem === 'ai' ? null : (
+                        ) : activeItem === 'terminal' || activeItem === 'ai' || activeItem === 'icons' ? null : (
       <View style={styles.fileTree}>
         <View style={styles.ftActions}>
           <TouchableOpacity style={styles.ftBtn} onPress={() => setFileModalVisible(true)}>
