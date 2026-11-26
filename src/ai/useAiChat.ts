@@ -46,6 +46,7 @@ export interface SendOptions {
   contextIds?: string[]; // معرّفات الملفات المختارة
   tools?: boolean; // السماح للموديل بقراءة ملفات المشروع (قراءة فقط)
   attachments?: Attachment[]; // ملفات نصية مرفقة من الجهاز
+  mediaNames?: string[]; // أسماء الصور/الفيديو المرفقة (للعرض بس)
 }
 
 export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteStepFn, projectName: string, files: ProjectFile[]) {
@@ -101,11 +102,12 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
         role: 'user',
         content,
         images,
+        ctx: opts.mediaNames?.length ? opts.mediaNames : undefined,
         mode: mode === 'chat' ? undefined : mode,
       };
       const history = messages
         .filter((m) => !m.failed)
-        .map((m) => ({ role: m.role, content: m.content, images: m.images }));
+        .map((m) => ({ role: m.role, content: m.content })); // الصور بتتبعت مع رسالتها بس
       setMessages((prev) => [...prev, userMsg]);
       setSending(true);
       try {
@@ -126,7 +128,8 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
           contextText = ctx.text;
           setSkipped(ctx.skipped.length);
           if (ctx.included.length) {
-            setMessages((prev) => prev.map((m) => (m.id === userMsg.id ? { ...m, ctx: ctx.included } : m)));
+            const names = [...(opts.mediaNames ?? []), ...ctx.included];
+            setMessages((prev) => prev.map((m) => (m.id === userMsg.id ? { ...m, ctx: names } : m)));
           }
         }
         const req = prepareRequest({ history, text: content, images, mode, contextText, system });
