@@ -11,12 +11,15 @@ import type { UiMessage } from '../../ai/useAiChat';
 import type { RouteFn, RouteStepFn } from '../../ai/useAiChat';
 import type { TranslationKey } from '../../i18n/translations';
 import type { ChatMode } from '../../ai/chatRequest';
-import { splitPlanReply } from '../../ai/planFormat';
+import { planToMarkdown, splitPlanReply } from '../../ai/planFormat';
+import { MAX_CONTEXT_FILES } from '../../ai/contextFiles';
+import { pickDeviceFiles, type Attachment } from '../../ai/deviceFiles';
 import type { ProjectFile } from '../../screens/editor/useEditorFile';
 import { useKeyboardPad } from '../../ai/useKeyboardPad';
 import MessageText from './MessageText';
 import PlanCard from './PlanCard';
 import ContextPicker from './ContextPicker';
+import ChangesCard from './ChangesCard';
 
 interface Props {
   projectId: string;
@@ -38,6 +41,8 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
   const [ctxIds, setCtxIds] = useState<string[]>([]);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [toolsOn, setToolsOn] = useState(false); // قراءة ملفات المشروع (مقفولة افتراضيًا)
+  const [attached, setAttached] = useState<Attachment[]>([]); // ملفات من الجهاز
+  const [attachNote, setAttachNote] = useState('');
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const listRef = useRef<FlatList<UiMessage>>(null);
   const copyTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -66,7 +71,30 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
     if (!text || chat.sending || !chat.loaded) return;
     setInput('');
     setCtxIds([]); // الملفات بتتبعت مع الرسالة دي بس
-    void chat.send(text, { mode, contextIds: selected, tools: toolsOn });
+    setAttached([]);
+    setAttachNote('');
+    void chat.send(text, { mode, contextIds: selected, tools: toolsOn || mode === 'agent', attachments: attached });
+  };
+
+  const attachFromDevice = async () => {
+    const room = MAX_CONTEXT_FILES - selected.length - attached.length;
+    if (room <= 0) {
+      setAttachNote(t('ctx_max').replace('{n}', String(MAX_CONTEXT_FILES)));
+      return;
+    }
+    try {
+      const r = await pickDeviceFiles(room);
+      if (r.files.length) setAttached((cur) => [...cur, ...r.files]);
+      setAttachNote(r.skipped ? t('attach_skipped').replace('{n}', String(r.skipped)) : '');
+    } catch {
+      setAttachNote(t('attach_skipped').replace('{n}', '1'));
+    }
+  };
+
+  const executePlan = (md: string) => {
+    if (chat.sending) return;
+    setMode('agent');
+    void chat.send(md, { mode: 'agent', tools: true });
   };
 
   const copy = async (m: UiMessage) => {
@@ -77,7 +105,23 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
   };
 
   const renderAssistant = (m: UiMessage) => {
-    if (m.mode !== 'plan') return <MessageText text={m.content} />;
+    if (m.mode !== 'plan') {
+      return (
+        <View style={styles.planWrap}>
+          <MessageText text={m.content} />
+          {m.proposal ? (
+            <ChangesCard
+              proposal={m.proposal}
+              canUndo={chat.canUndo(m.id)}
+              getChange={(path) => chat.getChange(m.id, path)}
+              onApply={(paths) => void chat.applyProposal(m.id, paths)}
+              onReject={() => chat.rejectProposal(m.id)}
+              onUndo={() => void chat.undoProposal(m.id)}
+            />
+          ) : null}
+        </View>
+      );
+    }
     const { plan, text } = splitPlanReply(m.content);
     if (!plan) {
       return (
@@ -90,7 +134,7 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
     return (
       <View style={styles.planWrap}>
         {text ? <MessageText text={text} /> : null}
-        <PlanCard plan={plan} />
+        <PlanCard plan={plan} onExecute={() => executePlan(planToMarkdown(plan))} />
       </View>
     );
   };
@@ -133,7 +177,7 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
             style={[
               styles.bubble,
               item.role === 'user' ? styles.mine : styles.theirs,
-              item.mode === 'plan' && item.role === 'assistant' && styles.planBubble,
+              (item.mode === 'plan' || !!item.proposal) && item.role === 'assistant' && styles.planBubble,
               item.failed && styles.failed,
             ]}
           >
@@ -194,7 +238,7 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
 
       <View style={styles.tools}>
         <View style={styles.modes}>
-          {(['chat', 'plan'] as ChatMode[]).map((m) => (
+          {(['chat', 'plan', 'agent'] as ChatMode[]).map((m) => (
             <TouchableOpacity
               key={m}
               style={[styles.modeChip, mode === m && styles.modeChipOn]}
@@ -202,18 +246,27 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
               activeOpacity={0.8}
             >
               <Text style={[styles.modeText, mode === m && styles.modeTextOn]}>
-                {t(m === 'chat' ? 'mode_chat' : 'mode_plan')}
+                {t(m === 'chat' ? 'mode_chat' : m === 'plan' ? 'mode_plan' : 'mode_agent')}
               </Text>
             </TouchableOpacity>
           ))}
         </View>
-        <TouchableOpacity
-          style={[styles.attachBtn, toolsOn && styles.modeChipOn]}
-          onPress={() => setToolsOn((v) => !v)}
-          activeOpacity={0.8}
-        >
-          <Ionicons name="search-outline" size={16} color={colors.text} />
-          <Text style={styles.attachText}>{t('tools_toggle')}</Text>
+        {mode !== 'agent' ? (
+          <TouchableOpacity
+            style={[styles.attachBtn, toolsOn && styles.modeChipOn]}
+            onPress={() => setToolsOn((v) => !v)}
+            activeOpacity={0.8}
+          >
+            <Ionicons name="search-outline" size={16} color={colors.text} />
+            <Text style={styles.attachText}>{t('tools_toggle')}</Text>
+          </TouchableOpacity>
+        ) : null}
+        <TouchableOpacity style={styles.attachBtn} onPress={() => void attachFromDevice()} activeOpacity={0.8}>
+          <Ionicons name="add" size={16} color={colors.text} />
+          <Text style={styles.attachText}>
+            {t('attach_device')}
+            {attached.length ? ` (${attached.length})` : ''}
+          </Text>
         </TouchableOpacity>
         <TouchableOpacity style={styles.attachBtn} onPress={() => setPickerOpen(true)} activeOpacity={0.8}>
           <Ionicons name="document-attach-outline" size={16} color={colors.text} />
@@ -224,9 +277,10 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
         </TouchableOpacity>
       </View>
 
-      {toolsOn ? <Text style={styles.toolHint}>{t('tools_hint')}</Text> : null}
+      {mode === 'agent' ? <Text style={styles.toolHint}>{t('agent_hint')}</Text> : toolsOn ? <Text style={styles.toolHint}>{t('tools_hint')}</Text> : null}
+      {attachNote ? <Text style={styles.toolHint}>{attachNote}</Text> : null}
 
-      {selected.length ? (
+      {selected.length || attached.length ? (
         <View style={styles.selRow}>
           {selected.map((id) => (
             <TouchableOpacity
@@ -241,6 +295,19 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
               <Ionicons name="close" size={12} color={colors.textMuted} />
             </TouchableOpacity>
           ))}
+          {attached.map((a, i) => (
+            <TouchableOpacity
+              key={`a${i}`}
+              style={styles.selChip}
+              onPress={() => setAttached(attached.filter((_, j) => j !== i))}
+              activeOpacity={0.7}
+            >
+              <Text style={styles.selText} numberOfLines={1}>
+                {a.name}
+              </Text>
+              <Ionicons name="close" size={12} color={colors.textMuted} />
+            </TouchableOpacity>
+          ))}
         </View>
       ) : null}
 
@@ -249,7 +316,7 @@ export default function AiChatView({ projectId, route, routeStep, headerLabel, p
           style={styles.input}
           value={input}
           onChangeText={setInput}
-          placeholder={t(mode === 'plan' ? 'plan_placeholder' : 'ai_chat_placeholder')}
+          placeholder={t(mode === 'plan' || mode === 'agent' ? 'plan_placeholder' : 'ai_chat_placeholder')}
           placeholderTextColor={colors.textFaint}
           multiline
         />
@@ -308,8 +375,10 @@ const styles = StyleSheet.create({
   err: { color: colors.error, fontFamily: fonts.ui, fontSize: 12.5, lineHeight: 19, padding: spacing.sm },
   tools: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     alignItems: 'center',
     justifyContent: 'space-between',
+    gap: spacing.xs,
     paddingHorizontal: spacing.sm,
     paddingTop: spacing.sm,
     borderTopWidth: 1,

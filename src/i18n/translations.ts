@@ -28,6 +28,7 @@ import { aiSlots } from './aiSlots';
 import { aiPlan } from './aiPlan';
 import { aiTools } from './aiTools';
 import { icons } from './icons';
+import { aiAgent } from './aiAgent';
 
 export const translations = {
  ar: {
@@ -55,6 +56,7 @@ export const translations = {
     ...aiPlan.ar,
     ...aiTools.ar,
     ...icons.ar,
+    ...aiAgent.ar,
   },
   en: {
     ...common.en,
@@ -81,6 +83,7 @@ export const translations = {
     ...aiPlan.en,
     ...aiTools.en,
     ...icons.en,
+    ...aiAgent.en,
   }, 
 } as const;
 

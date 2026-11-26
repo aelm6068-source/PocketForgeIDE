@@ -6,6 +6,14 @@ import type { RouteResult } from './routedSend';
 import type { StepRouteResult } from './routedStep';
 import { runToolLoop } from './toolLoop';
 import { executeTool, READ_TOOLS, toolsInstructions, withBudget } from './tools';
+import { agentInstructions, AGENT_MAX_STEPS, AGENT_TOOLS, executeAgentTool } from './agentTools';
+import { Workspace, type Change } from './workspace';
+import { applyChanges, undoChanges, type UndoOp } from './applyChanges';
+import { makeProposal, type Proposal } from './proposal';
+import type { Attachment } from './deviceFiles';
+import { VirtualFs } from '../terminal/vfs';
+import { createProjectStore } from '../terminal/projectStore';
+import { translate } from '../i18n/translate';
 import type { AgentMessage, ToolDef, ToolTrace } from './toolTypes';
 import type { SlotRole } from './slots';
 import { aiErrorText } from './aiErrors';
@@ -25,10 +33,11 @@ export interface UiMessage extends ChatMessage {
   id: number;
   failed?: boolean;
   via?: string; // اسم الخانة الي ردّت
-  mode?: 'plan'; // رسالة في وضع الخطة
+  mode?: 'plan' | 'agent'; // رسالة في وضع الخطة أو التنفيذ
   ctx?: string[]; // ملفات السياق الي اتبعتت مع رسالة المستخدم
   tools?: ToolTrace[]; // الأدوات الي استخدمها الموديل
   capped?: boolean;
+  proposal?: Proposal;
 }
 
 export interface SendOptions {
@@ -36,6 +45,7 @@ export interface SendOptions {
   mode?: ChatMode;
   contextIds?: string[]; // معرّفات الملفات المختارة
   tools?: boolean; // السماح للموديل بقراءة ملفات المشروع (قراءة فقط)
+  attachments?: Attachment[]; // ملفات نصية مرفقة من الجهاز
 }
 
 export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteStepFn, projectName: string, files: ProjectFile[]) {
@@ -46,6 +56,9 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
   const [skipped, setSkipped] = useState(0); // كام ملف سياق اتخطّى في آخر إرسال
   const [activity, setActivity] = useState<ToolTrace | null>(null); // آخر أداة بتتنفّذ دلوقتي
   const nextId = useRef(1);
+  // محتوى التعديلات المقترحة (في الذاكرة بس) وبيانات التراجع، لكل رسالة
+  const pending = useRef(new Map<number, Change[]>());
+  const undoData = useRef(new Map<number, { ops: UndoOp[]; applied: Change[] }>());
   const busy = useRef(false);
   const system = useMemo(() => buildSystemPrompt(projectName, files), [projectName, files]);
   const entries = useMemo(() => listProjectEntries(files), [files]);
@@ -78,8 +91,8 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
       const mode: ChatMode = opts.mode ?? 'chat';
       const images = opts.images;
       if (!loaded || busy.current) return;
-      // في وضع الخطة لازم وصف نصي
-      if (mode === 'plan' ? !content : !content && !images?.length) return;
+      // في وضع الخطة والتنفيذ لازم وصف نصي
+      if (mode !== 'chat' ? !content : !content && !images?.length) return;
       busy.current = true;
       setError('');
       setSkipped(0);
@@ -88,7 +101,7 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
         role: 'user',
         content,
         images,
-        mode: mode === 'plan' ? 'plan' : undefined,
+        mode: mode === 'chat' ? undefined : mode,
       };
       const history = messages
         .filter((m) => !m.failed)
@@ -98,8 +111,9 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
       try {
         // ملفات السياق: بتتقرا من الجهاز وقت الإرسال (المحفوظ بس، مش التعديلات الي لسه مااتحفظتش)
         let contextText = '';
-        const ids = (opts.contextIds ?? []).slice(0, MAX_CONTEXT_FILES);
-        if (ids.length) {
+        const atts = (opts.attachments ?? []).slice(0, MAX_CONTEXT_FILES);
+        const ids = (opts.contextIds ?? []).slice(0, MAX_CONTEXT_FILES - atts.length);
+        if (ids.length || atts.length) {
           const pathById = new Map<string, string>(entries.map((e) => [e.id, e.path]));
           const picked: { path: string; content: string | null }[] = [];
           for (const id of ids) {
@@ -107,6 +121,7 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
             if (!path) continue;
             picked.push({ path, content: await loadFileContent(projectId, id) });
           }
+          for (const a of atts) picked.push({ path: a.name, content: a.content });
           const ctx = buildFileContext(picked);
           contextText = ctx.text;
           setSkipped(ctx.skipped.length);
@@ -119,20 +134,29 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
         let via: string;
         let tools: ToolTrace[] | undefined;
         let capped = false;
-        if (opts.tools) {
+        const assistantId = nextId.current++;
+        let proposal: Proposal | undefined;
+        if (opts.tools || mode === 'agent') {
+          const ws = mode === 'agent' ? new Workspace(entries, (id) => loadFileContent(projectId, id)) : null;
           const toolCtx = { entries, read: (id: string) => loadFileContent(projectId, id) };
-          const exec = withBudget((c) => executeTool(c, toolCtx));
-          const sys = `${req.system}\n\n${toolsInstructions()}`;
+          const exec = withBudget(ws ? (c) => executeAgentTool(c, ws) : (c) => executeTool(c, toolCtx), ws ? 150000 : undefined);
+          const sys = `${req.system}\n\n${ws ? agentInstructions() : toolsInstructions()}`;
           const r = await runToolLoop(
             req.payload as AgentMessage[],
             {
-              step: (m) => routeStep(req.role, m, sys, READ_TOOLS).then((x) => ({ step: x.step, slot: x.slot })),
+              step: (m) => routeStep(req.role, m, sys, ws ? AGENT_TOOLS : READ_TOOLS).then((x) => ({ step: x.step, slot: x.slot })),
               execute: exec,
               onTool: (c, res) => setActivity({ name: c.name, arg: String(c.args.path ?? c.args.query ?? c.args.prefix ?? '').slice(0, 120), ok: !res.isError }),
             },
+            ws ? AGENT_MAX_STEPS : undefined,
           );
-          if (!r.text.trim()) throw new AiError('bad_response', 'empty');
-          reply = r.text;
+          const ch = ws ? ws.changes() : [];
+          if (ch.length) {
+            pending.current.set(assistantId, ch);
+            proposal = makeProposal(ch);
+          }
+          if (!r.text.trim() && !proposal) throw new AiError('bad_response', 'empty');
+          reply = r.text.trim() ? r.text : translate('agent_no_text');
           via = r.slot?.label ?? '';
           tools = r.trace.length ? r.trace.slice(0, 20) : undefined;
           capped = r.capped;
@@ -144,13 +168,14 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
         setMessages((prev) => [
           ...prev,
           {
-            id: nextId.current++,
+            id: assistantId,
             role: 'assistant',
             content: reply,
             via,
-            mode: mode === 'plan' ? 'plan' : undefined,
+            mode: mode === 'chat' ? undefined : mode,
             tools,
             capped: capped || undefined,
+            proposal,
           },
         ]);
       } catch (e) {
@@ -165,12 +190,81 @@ export function useAiChat(projectId: string, route: RouteFn, routeStep: RouteSte
     [loaded, messages, route, routeStep, system, entries, projectId]
   );
 
+  // ---------- مراجعة تعديلات وضع التنفيذ ----------
+  const patchProposal = useCallback((id: number, fn: (p: Proposal) => Proposal) => {
+    setMessages((prev) => prev.map((m) => (m.id === id && m.proposal ? { ...m, proposal: fn(m.proposal) } : m)));
+  }, []);
+
+  const applyProposal = useCallback(
+    async (id: number, paths: string[]) => {
+      const all = pending.current.get(id);
+      if (!all) {
+        patchProposal(id, (p) => ({ ...p, status: 'expired' }));
+        return;
+      }
+      const chosen = all.filter((c) => paths.includes(c.path));
+      if (!chosen.length) return;
+      try {
+        const res = await applyChanges(new VirtualFs(createProjectStore(projectId)), chosen);
+        undoData.current.set(id, { ops: res.undo, applied: chosen.filter((c) => res.applied.includes(c.path)) });
+        pending.current.delete(id);
+        patchProposal(id, (p) => ({
+          status: 'applied',
+          items: p.items.map((it) => {
+            const failed = res.failed.find((f) => f.path === it.path);
+            return { ...it, result: res.applied.includes(it.path) ? 'applied' : failed ? failed.reason : 'skipped' };
+          }),
+        }));
+      } catch (e) {
+        setError(String((e as Error)?.message || e));
+      }
+    },
+    [projectId, patchProposal]
+  );
+
+  const rejectProposal = useCallback(
+    (id: number) => {
+      pending.current.delete(id);
+      patchProposal(id, (p) => ({ ...p, status: 'rejected' }));
+    },
+    [patchProposal]
+  );
+
+  const undoProposal = useCallback(
+    async (id: number) => {
+      const data = undoData.current.get(id);
+      if (!data) return;
+      try {
+        const res = await undoChanges(new VirtualFs(createProjectStore(projectId)), data.ops, data.applied);
+        undoData.current.delete(id);
+        patchProposal(id, (p) => ({
+          status: 'undone',
+          items: p.items.map((it) =>
+            res.restored.includes(it.path) ? { ...it, result: 'undone' } : res.skipped.includes(it.path) ? { ...it, result: 'undo_skipped' } : it
+          ),
+        }));
+      } catch (e) {
+        setError(String((e as Error)?.message || e));
+      }
+    },
+    [projectId, patchProposal]
+  );
+
+  const canUndo = useCallback((id: number) => undoData.current.has(id), []);
+  const getChange = useCallback(
+    (id: number, path: string): Change | undefined =>
+      (pending.current.get(id) ?? undoData.current.get(id)?.applied)?.find((c) => c.path === path),
+    []
+  );
+
   const clear = useCallback(() => {
+    pending.current.clear();
+    undoData.current.clear();
     setMessages([]);
     setError('');
     setSkipped(0);
     void clearChat(projectId);
   }, [projectId]);
 
-  return { messages, loaded, sending, error, skipped, activity, entries, send, clear };
+  return { messages, loaded, sending, error, skipped, activity, entries, send, clear, applyProposal, rejectProposal, undoProposal, canUndo, getChange };
 }
