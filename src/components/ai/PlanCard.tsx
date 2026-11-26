@@ -7,7 +7,7 @@ import { colors, fonts, spacing, radius } from '../../theme/colors';
 import { useLanguage } from '../../i18n/LanguageContext';
 import { planToMarkdown, type Plan } from '../../ai/planFormat';
 
-export default function PlanCard({ plan }: { plan: Plan }) {
+export default function PlanCard({ plan, onExecute }: { plan: Plan; onExecute?: () => void }) {
   const { t } = useLanguage();
   const [copied, setCopied] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -88,6 +88,11 @@ export default function PlanCard({ plan }: { plan: Plan }) {
         </View>
       ) : null}
 
+      {onExecute ? (
+        <TouchableOpacity style={styles.execBtn} onPress={onExecute} activeOpacity={0.8}>
+          <Text style={styles.execText}>{t('agent_execute_plan')}</Text>
+        </TouchableOpacity>
+      ) : null}
       <TouchableOpacity style={styles.copyBtn} onPress={() => void copy()} activeOpacity={0.7}>
         <Text style={styles.copyText}>{copied ? t('ai_copied') : t('ai_copy')}</Text>
       </TouchableOpacity>
@@ -126,6 +131,8 @@ const styles = StyleSheet.create({
   },
   chipText: { color: colors.textMuted, fontFamily: fonts.code, fontSize: 10.5 },
   item: { color: colors.text, fontFamily: fonts.ui, fontSize: 12.5, lineHeight: 20 },
+  execBtn: { alignSelf: 'flex-start', paddingHorizontal: spacing.md, paddingVertical: 7, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.accentDim },
+  execText: { color: colors.text, fontFamily: fonts.uiMedium, fontSize: 12 },
   copyBtn: { alignSelf: 'flex-end', paddingTop: spacing.xs },
   copyText: { color: colors.accent, fontFamily: fonts.uiMedium, fontSize: 11.5 },
 });

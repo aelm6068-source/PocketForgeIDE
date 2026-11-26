@@ -5,7 +5,7 @@ import type { ChatImage, ChatMessage } from './providers';
 import type { SlotRole } from './slots';
 import { planInstructions } from './planFormat';
 
-export type ChatMode = 'chat' | 'plan';
+export type ChatMode = 'chat' | 'plan' | 'agent';
 export const MAX_HISTORY = 30; // آخر 30 رسالة بس بتتبعت للمزوّد
 
 export interface PrepareArgs {
@@ -32,7 +32,7 @@ export function prepareRequest(a: PrepareArgs): PreparedRequest {
   // أول رسالة لازم تبقى من المستخدم (شرط بعض المزوّدين)
   while (payload.length && payload[0].role !== 'user') payload.shift();
   return {
-    role: a.mode === 'plan' ? 'plan' : 'chat',
+    role: a.mode === 'plan' ? 'plan' : a.mode === 'agent' ? 'agent' : 'chat',
     system: a.mode === 'plan' ? `${a.system}\n\n${planInstructions()}` : a.system,
     payload,
   };

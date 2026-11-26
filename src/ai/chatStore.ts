@@ -2,6 +2,7 @@
 // حفظ محادثة الذكاء الاصطناعي لكل مشروع لوحده (AsyncStorage). المحادثات منفصلة بالكامل بين المشاريع.
 // الصور المرفقة مبتتحفظش (حجمها كبير)، بنحفظ النص بس.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { sanitizeProposal, type Proposal } from './proposal';
 import type { ToolTrace } from './toolTypes';
 
 export interface StoredMessage {
@@ -10,10 +11,11 @@ export interface StoredMessage {
   content: string;
   failed?: boolean;
   via?: string; // اسم الخانة الي ردّت (للرسايل بتاعة الذكاء الاصطناعي)
-  mode?: 'plan'; // الرسالة اتبعتت/اترد عليها في وضع الخطة (الدردشة العادية = من غير حقل)
+  mode?: 'plan' | 'agent'; // الرسالة اتبعتت/اترد عليها في وضع الخطة (الدردشة العادية = من غير حقل)
   ctx?: string[]; // مسارات ملفات السياق الي اتبعتت مع الرسالة (للمستخدم بس)
   tools?: ToolTrace[]; // الأدوات الي الموديل استخدمها قبل الرد (نتايجها مبتتحفظش)
   capped?: boolean; // الحلقة وقفت عند الحد الأقصى للخطوات
+  proposal?: Proposal; // تعديلات وضع التنفيذ المقترحة (ملخص بس)
 }
 
 const MAX_STORED = 100;
@@ -52,7 +54,8 @@ export function sanitizeStored(raw: unknown): StoredMessage[] {
       content: r.content,
       failed: r.failed === true ? true : undefined,
       via: typeof r.via === 'string' && r.via ? r.via : undefined,
-      mode: r.mode === 'plan' ? 'plan' : undefined,
+      mode: r.mode === 'plan' ? 'plan' : r.mode === 'agent' ? 'agent' : undefined,
+      proposal: sanitizeProposal(r.proposal),
       ctx: ctx.length ? ctx : undefined,
       tools: tools.length ? tools : undefined,
       capped: r.capped === true ? true : undefined,
@@ -74,7 +77,7 @@ export async function saveChat(projectId: string, messages: StoredMessage[]): Pr
   try {
     const slim = messages
       .slice(-MAX_STORED)
-      .map((m) => ({ id: m.id, role: m.role, content: m.content, failed: m.failed, via: m.via, mode: m.mode, ctx: m.ctx, tools: m.tools, capped: m.capped }));
+      .map((m) => ({ id: m.id, role: m.role, content: m.content, failed: m.failed, via: m.via, mode: m.mode, ctx: m.ctx, tools: m.tools, capped: m.capped, proposal: m.proposal }));
     await AsyncStorage.setItem(keyFor(projectId), JSON.stringify(slim));
   } catch (err) {
     console.warn('AI: failed to save chat', err);
