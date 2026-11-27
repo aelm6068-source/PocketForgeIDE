@@ -53,6 +53,7 @@ export default function AppDrawer({
     { key: 'preview', label: t('drawer_preview'), icon: 'play-outline' },
     { key: 'ai', label: 'AI', icon: 'sparkles-outline' },
     { key: 'icons', label: t('drawer_icons'), icon: 'shapes-outline' },
+    { key: 'libs', label: t('drawer_libs'), icon: 'cube-outline' },
   ];
 
   useEffect(() => {

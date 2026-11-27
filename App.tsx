@@ -4,7 +4,7 @@ import { StyleSheet } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -34,6 +34,7 @@ import FilesScreen from './src/screens/FilesScreen';
 import EditorScreen from './src/screens/editor/EditorScreen';
 import { colors } from './src/theme/colors';
 import { LanguageProvider, useLanguage } from './src/i18n/LanguageContext';
+import { useHideNavigationBar } from './src/utils/immersive';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -42,6 +43,7 @@ const Stack = createNativeStackNavigator();
 
 function MainTabs() {
   const { t } = useLanguage();
+  const insets = useSafeAreaInsets(); // لو شريط الأزرار ظهر (سحبة من الحافة) الشريط السفلي ميتغطاش
 
   return (
     <Tab.Navigator
@@ -50,8 +52,8 @@ function MainTabs() {
         tabBarStyle: {
           backgroundColor: colors.surface,
           borderTopColor: colors.border,
-          height: 74,
-          paddingBottom: 10,
+          height: 74 + insets.bottom,
+          paddingBottom: 10 + insets.bottom,
           paddingTop: 8,
         },
         tabBarActiveTintColor: colors.accent,
@@ -82,6 +84,8 @@ export default function App() {
     Cairo_600SemiBold,
     Cairo_700Bold,
   });
+
+  useHideNavigationBar();
 
   const fontsLoaded = soraLoaded && monoLoaded && cairoLoaded;
 
