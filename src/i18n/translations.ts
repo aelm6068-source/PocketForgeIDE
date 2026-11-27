@@ -29,6 +29,7 @@ import { aiPlan } from './aiPlan';
 import { aiTools } from './aiTools';
 import { icons } from './icons';
 import { aiAgent } from './aiAgent';
+import { libs } from './libs';
 
 export const translations = {
  ar: {
@@ -57,6 +58,7 @@ export const translations = {
     ...aiTools.ar,
     ...icons.ar,
     ...aiAgent.ar,
+    ...libs.ar,
   },
   en: {
     ...common.en,
@@ -84,6 +86,7 @@ export const translations = {
     ...aiTools.en,
     ...icons.en,
     ...aiAgent.en,
+    ...libs.en,
   }, 
 } as const;
 

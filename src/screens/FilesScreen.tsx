@@ -19,6 +19,7 @@ import GithubPublishModal from '../components/GithubPublishModal';
 import DeployGuideModal from '../components/DeployGuideModal';
 import PreviewPanel from '../components/preview/PreviewPanel';
 import TerminalPanel from '../components/terminal/TerminalPanel';
+import LibsPanel from '../components/libs/LibsPanel';
 import AiPanel from '../components/ai/AiPanel';
 import IconsPanel from '../components/icons/IconsPanel';
 import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, deleteFileContent, touchProject, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
@@ -56,6 +57,11 @@ export default function FilesScreen({ route, navigation }: any) {
   const [iconsOpened, setIconsOpened] = useState(false);
   useEffect(() => {
     if (activeItem === 'icons') setIconsOpened(true);
+  }, [activeItem]);
+  // تاب المكتبات بيفضل شغال بعد أول فتح (البحث والنتايج متضيعش)
+  const [libsOpened, setLibsOpened] = useState(false);
+  useEffect(() => {
+    if (activeItem === 'libs') setLibsOpened(true);
   }, [activeItem]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [fileModalVisible, setFileModalVisible] = useState(false);
@@ -497,9 +503,15 @@ export default function FilesScreen({ route, navigation }: any) {
         </View>
       )}
 
+      {libsOpened && (
+        <View style={{ flex: 1, display: activeItem === 'libs' ? 'flex' : 'none' }}>
+          <LibsPanel projectId={projectId} />
+        </View>
+      )}
+
       {activeItem === 'preview' ? (
         <PreviewPanel projectId={projectId} files={files} />
-                        ) : activeItem === 'terminal' || activeItem === 'ai' || activeItem === 'icons' ? null : (
+                        ) : activeItem === 'terminal' || activeItem === 'ai' || activeItem === 'icons' || activeItem === 'libs' ? null : (
       <View style={styles.fileTree}>
         <View style={styles.ftActions}>
           <TouchableOpacity style={styles.ftBtn} onPress={() => setFileModalVisible(true)}>
