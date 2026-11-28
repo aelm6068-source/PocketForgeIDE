@@ -30,6 +30,7 @@ import { aiTools } from './aiTools';
 import { icons } from './icons';
 import { aiAgent } from './aiAgent';
 import { libs } from './libs';
+import { connectors } from './connectors';
 
 export const translations = {
  ar: {
@@ -59,6 +60,7 @@ export const translations = {
     ...icons.ar,
     ...aiAgent.ar,
     ...libs.ar,
+    ...connectors.ar,
   },
   en: {
     ...common.en,
@@ -87,6 +89,7 @@ export const translations = {
     ...icons.en,
     ...aiAgent.en,
     ...libs.en,
+    ...connectors.en,
   }, 
 } as const;
 

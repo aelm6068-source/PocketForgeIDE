@@ -20,6 +20,7 @@ import DeployGuideModal from '../components/DeployGuideModal';
 import PreviewPanel from '../components/preview/PreviewPanel';
 import TerminalPanel from '../components/terminal/TerminalPanel';
 import LibsPanel from '../components/libs/LibsPanel';
+import ConnectorsPanel from '../components/builds/ConnectorsPanel';
 import AiPanel from '../components/ai/AiPanel';
 import IconsPanel from '../components/icons/IconsPanel';
 import { saveProjectFiles, loadProjectFiles, loadFileContent, saveFileContent, deleteFileContent, touchProject, saveSandboxId, loadSandboxId, clearSandboxId, loadProjectsList } from '../utils/projectStorage';
@@ -62,6 +63,11 @@ export default function FilesScreen({ route, navigation }: any) {
   const [libsOpened, setLibsOpened] = useState(false);
   useEffect(() => {
     if (activeItem === 'libs') setLibsOpened(true);
+  }, [activeItem]);
+  // تاب الموصّلات بيفضل شغال بعد أول فتح
+  const [connOpened, setConnOpened] = useState(false);
+  useEffect(() => {
+    if (activeItem === 'connectors') setConnOpened(true);
   }, [activeItem]);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [fileModalVisible, setFileModalVisible] = useState(false);
@@ -509,9 +515,15 @@ export default function FilesScreen({ route, navigation }: any) {
         </View>
       )}
 
+      {connOpened && (
+        <View style={{ flex: 1, display: activeItem === 'connectors' ? 'flex' : 'none' }}>
+          <ConnectorsPanel projectId={projectId} active={activeItem === 'connectors'} />
+        </View>
+      )}
+
       {activeItem === 'preview' ? (
         <PreviewPanel projectId={projectId} files={files} />
-                        ) : activeItem === 'terminal' || activeItem === 'ai' || activeItem === 'icons' || activeItem === 'libs' ? null : (
+                        ) : activeItem === 'terminal' || activeItem === 'ai' || activeItem === 'icons' || activeItem === 'libs' || activeItem === 'connectors' ? null : (
       <View style={styles.fileTree}>
         <View style={styles.ftActions}>
           <TouchableOpacity style={styles.ftBtn} onPress={() => setFileModalVisible(true)}>
