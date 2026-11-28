@@ -54,6 +54,7 @@ export default function AppDrawer({
     { key: 'ai', label: 'AI', icon: 'sparkles-outline' },
     { key: 'icons', label: t('drawer_icons'), icon: 'shapes-outline' },
     { key: 'libs', label: t('drawer_libs'), icon: 'cube-outline' },
+    { key: 'connectors', label: t('drawer_connectors'), icon: 'git-network-outline' },
   ];
 
   useEffect(() => {
